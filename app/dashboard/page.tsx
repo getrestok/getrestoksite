@@ -1,11 +1,11 @@
 "use client";
 
+import React from "react";
 import { useEffect, useState } from "react";
 import { auth, db } from "../../lib/firebase";
-import { doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -175,140 +175,132 @@ async function handleEditSubmit(e: any) {
         </div>
       </div>
 
-      {/* ======================== */}
-      {/* ADD ITEM MODAL */}
-      {/* ======================== */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
+                            {/* ADD ITEM MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold">Add New Item</h2>
 
-            <h2 className="text-xl font-semibold">Add New Item</h2>
+              <form onSubmit={handleAddItem} className="mt-4 space-y-4">
+                <div>
+                  <label className="text-sm text-slate-600">Item name</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-3 mt-1 border rounded-lg"
+                    placeholder="Paper Towels"
+                  />
+                </div>
 
-            <form onSubmit={handleAddItem} className="mt-4 space-y-4">
-              
-              <div>
-                <label className="text-sm text-slate-600">Item name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-3 mt-1 border rounded-lg"
-                  placeholder="Paper Towels"
-                />
-              </div>
+                <div>
+                  <label className="text-sm text-slate-600">Days it lasts</label>
+                  <input
+                    type="number"
+                    value={daysLast}
+                    onChange={(e) => setDaysLast(e.target.value)}
+                    className="w-full p-3 mt-1 border rounded-lg"
+                    placeholder="30"
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm text-slate-600">Days it lasts</label>
-                <input
-                  type="number"
-                  value={daysLast}
-                  onChange={(e) => setDaysLast(e.target.value)}
-                  className="w-full p-3 mt-1 border rounded-lg"
-                  placeholder="30"
-                />
-              </div>
+                <div>
+                  <label className="text-sm text-slate-600">Vendor</label>
+                  <input
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                    className="w-full p-3 mt-1 border rounded-lg"
+                    placeholder="Amazon / Staples / etc."
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm text-slate-600">Vendor</label>
-                <input
-                  value={vendor}
-                  onChange={(e) => setVendor(e.target.value)}
-                  className="w-full p-3 mt-1 border rounded-lg"
-                  placeholder="Amazon / Staples / etc."
-                />
-              </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="w-1/2 p-3 rounded-lg border"
+                  >
+                    Cancel
+                  </button>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="w-1/2 p-3 rounded-lg border"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="w-1/2 bg-sky-600 text-white p-3 rounded-lg"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-sky-600 text-white p-3 rounded-lg"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* EDIT ITEM MODAL */}
+        {showEditModal && editItem && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold">Edit Item</h2>
+
+              <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label className="text-sm text-slate-600">Item name</label>
+                  <input
+                    value={editItem.name}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, name: e.target.value })
+                    }
+                    className="w-full p-3 mt-1 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-slate-600">Days it lasts</label>
+                  <input
+                    type="number"
+                    value={editItem.daysLast}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, daysLast: e.target.value })
+                    }
+                    className="w-full p-3 mt-1 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-slate-600">Vendor</label>
+                  <input
+                    value={editItem.vendor}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, vendor: e.target.value })
+                    }
+                    className="w-full p-3 mt-1 border rounded-lg"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditItem(null);
+                    }}
+                    className="w-1/2 p-3 rounded-lg border"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white p-3 rounded-lg"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </div>
+    
   );
-{/* ======================== */}
-{/* EDIT ITEM MODAL */}
-{/* ======================== */}
-{showEditModal && editItem && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-    <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
-
-      <h2 className="text-xl font-semibold">Edit Item</h2>
-
-      <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
-        
-        <div>
-          <label className="text-sm text-slate-600">Item name</label>
-          <input
-            value={editItem.name}
-            onChange={(e) =>
-              setEditItem({ ...editItem, name: e.target.value })
-            }
-            className="w-full p-3 mt-1 border rounded-lg"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-slate-600">Days it lasts</label>
-          <input
-            type="number"
-            value={editItem.daysLast}
-            onChange={(e) =>
-              setEditItem({ ...editItem, daysLast: e.target.value })
-            }
-            className="w-full p-3 mt-1 border rounded-lg"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-slate-600">Vendor</label>
-          <input
-            value={editItem.vendor}
-            onChange={(e) =>
-              setEditItem({ ...editItem, vendor: e.target.value })
-            }
-            className="w-full p-3 mt-1 border rounded-lg"
-          />
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => {
-              setShowEditModal(false);
-              setEditItem(null);
-            }}
-            className="w-1/2 p-3 rounded-lg border"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            className="w-1/2 bg-blue-600 text-white p-3 rounded-lg"
-          >
-            Save Changes
-          </button>
-        </div>
-      </form>
-
-    </div>
-  </div>
-)}
-
-
 }
+
