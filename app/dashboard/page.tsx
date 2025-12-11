@@ -20,23 +20,32 @@ export default function Dashboard() {
   const [vendor, setVendor] = useState("");
 
   // Check auth + fetch items
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) router.push("/login");
-      else {
-        setUser(currentUser);
+ useEffect(() => {
+  let unsubscribeItems: any = null;
 
-        // Real-time subscription
-        return onSnapshot(
-          collection(db, "users", currentUser.uid, "items"),
-          (snap) => {
-            setItems(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-          }
-        );
+  const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+
+    setUser(currentUser);
+
+    // Real-time Firestore listener
+    unsubscribeItems = onSnapshot(
+      collection(db, "users", currentUser.uid, "items"),
+      (snap) => {
+        setItems(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       }
-    });
-    return () => unsub();
-  }, []);
+    );
+  });
+
+  return () => {
+    unsubAuth();
+    if (unsubscribeItems) unsubscribeItems();
+  };
+}, []);
+
 
   async function handleAddItem(e: any) {
     e.preventDefault();
