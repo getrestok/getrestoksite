@@ -3,9 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --text: #1a1a1a;
 }
 
-@theme inline {
+/* Define the inline theme using a data attribute selector instead of unsupported @theme at-rule */
+[data-theme="inline"] {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
