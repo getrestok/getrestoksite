@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import ThemeToggle from "../../components/ThemeToggle";
-import { auth } from "../../lib/firebase";
+import ThemeToggle from "./ThemeToggle";
+import { auth } from "../lib/firebase";
 
 export default function Sidebar() {
   return (
