@@ -18,9 +18,9 @@ export default function DashboardHome() {
     dueToday: 0,
   });
 
-  // =============================
+  // -----------------------------
   // AUTH CHECK
-  // =============================
+  // -----------------------------
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) router.push("/login");
@@ -29,9 +29,9 @@ export default function DashboardHome() {
     return () => unsub();
   }, []);
 
-  // =============================
-  // FETCH ITEMS
-  // =============================
+  // -----------------------------
+  // FETCH USER ITEMS
+  // -----------------------------
   useEffect(() => {
     if (!user) return;
 
@@ -42,6 +42,7 @@ export default function DashboardHome() {
           id: d.id,
           ...d.data(),
         }));
+
         setItems(data);
         calculateStats(data);
       }
@@ -50,9 +51,9 @@ export default function DashboardHome() {
     return () => unsubItems();
   }, [user]);
 
-  // =============================
+  // -----------------------------
   // STATS CALCULATION
-  // =============================
+  // -----------------------------
   function calculateStats(items: any[]) {
     const today = new Date();
     let runningLow = 0;
@@ -66,7 +67,7 @@ export default function DashboardHome() {
       emptyDate.setDate(emptyDate.getDate() + item.daysLast);
 
       const diffDays = Math.ceil(
-        (emptyDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        (emptyDate.getTime() - today.getTime()) / 86400000
       );
 
       if (diffDays <= 3) runningLow++;
@@ -83,13 +84,13 @@ export default function DashboardHome() {
   return (
     <motion.div
       className="min-h-screen flex bg-slate-100"
-      initial={{ opacity: 0 }}
+      initial={{ opacity: 0.4 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
 
       {/* =============================== */}
-      {/* SIDEBAR NAVIGATION */}
+      {/* SIDEBAR – SAME AS ITEMS PAGE */}
       {/* =============================== */}
       <aside className="w-64 bg-white border-r p-6 hidden md:flex flex-col">
         <motion.h1
@@ -104,7 +105,7 @@ export default function DashboardHome() {
 
           <motion.a
             href="/dashboard"
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
+            className="flex items-center gap-3 p-2 rounded-lg bg-slate-100 font-semibold"
             whileHover={{ x: 4 }}
           >
             📊 Dashboard
@@ -144,7 +145,7 @@ export default function DashboardHome() {
       <main className="flex-1 p-10">
         <motion.h1
           className="text-3xl font-bold"
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
         >
           Dashboard
@@ -199,7 +200,7 @@ export default function DashboardHome() {
         </div>
 
         {/* =============================== */}
-        {/* GRAPH CARD */}
+        {/* GRAPH PLACEHOLDER */}
         {/* =============================== */}
         <motion.div
           className="mt-10 bg-white p-6 rounded-xl shadow"
