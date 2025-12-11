@@ -59,6 +59,15 @@ export default function DashboardHome() {
     return () => unsub();
   }, [router]);
 
+  async function sendEmail(to: string, subject: string, message: string) {
+  await fetch("/api/send-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to, subject, message }),
+  });
+}
+
+
   // FETCH ITEMS
   useEffect(() => {
     if (!user) return;

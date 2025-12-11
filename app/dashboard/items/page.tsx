@@ -15,6 +15,21 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
+// ============================
+// EMAIL SENDER
+// ============================
+async function sendEmail(to: string, subject: string, message: string) {
+  try {
+    await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, subject, message }),
+    });
+  } catch (err) {
+    console.error("Failed to send email", err);
+  }
+}
+
 export default function ItemsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -64,7 +79,9 @@ export default function ItemsPage() {
     };
   }, [router]);
 
-  // STATUS BADGE
+  // ============================
+  // STATUS BADGE + EMAIL TRIGGERS
+  // ============================
   function getStatus(item: any) {
     if (!item.createdAt) return null;
 
@@ -74,7 +91,37 @@ export default function ItemsPage() {
 
     const daysLeft = item.daysLast - diff;
 
-    if (daysLeft <= 0)
+    const isLow = daysLeft <= 3 && daysLeft > 0;
+    const isDue = daysLeft <= 0;
+
+    // ---- Low-stock email (once) ----
+    if (isLow && !item.notifiedLow && user) {
+      sendEmail(
+        user.email,
+        `Low Stock Alert: ${item.name}`,
+        `${item.name} is running low with about ${daysLeft} day(s) left.`
+      );
+
+      updateDoc(doc(db, "users", user.uid, "items", item.id), {
+        notifiedLow: true,
+      });
+    }
+
+    // ---- Due-today / overdue email (once) ----
+    if (isDue && !item.notifiedDue && user) {
+      sendEmail(
+        user.email,
+        `Restock Needed: ${item.name}`,
+        `${item.name} has run out (or is due today) and needs to be refilled.`
+      );
+
+      updateDoc(doc(db, "users", user.uid, "items", item.id), {
+        notifiedDue: true,
+      });
+    }
+
+    // UI badge styles
+    if (isDue)
       return {
         label: "Due Today",
         color:
@@ -82,7 +129,7 @@ export default function ItemsPage() {
         daysLeft: 0,
       };
 
-    if (daysLeft <= 3)
+    if (isLow)
       return {
         label: "Running Low",
         color:
@@ -108,6 +155,8 @@ export default function ItemsPage() {
       daysLast: Number(daysLast),
       vendor,
       createdAt: serverTimestamp(),
+      notifiedLow: false,
+      notifiedDue: false,
     });
 
     setName("");
@@ -132,16 +181,19 @@ export default function ItemsPage() {
   }
 
   // DELETE ITEM
-  async function handleDeleteItem(id: string) {
-    if (!user) return;
+  async function handleDeleteItem(id: string | null) {
+    if (!user || !id) return;
     await deleteDoc(doc(db, "users", user.uid, "items", id));
   }
 
-  // REFILL
+  // REFILL — RESET ALERT FLAGS
   async function handleRefillItem(id: string) {
     if (!user) return;
+
     await updateDoc(doc(db, "users", user.uid, "items", id), {
       createdAt: serverTimestamp(),
+      notifiedLow: false,
+      notifiedDue: false,
     });
   }
 
@@ -245,7 +297,9 @@ export default function ItemsPage() {
         </div>
       </motion.div>
 
+      {/* ============================= */}
       {/* ADD MODAL */}
+      {/* ============================= */}
       <AnimatePresence>
         {showAdd && (
           <motion.div
@@ -307,7 +361,9 @@ export default function ItemsPage() {
         )}
       </AnimatePresence>
 
+      {/* ============================= */}
       {/* EDIT MODAL */}
+      {/* ============================= */}
       <AnimatePresence>
         {showEdit && editItem && (
           <motion.div
@@ -378,7 +434,9 @@ export default function ItemsPage() {
         )}
       </AnimatePresence>
 
+      {/* ============================= */}
       {/* DELETE MODAL */}
+      {/* ============================= */}
       <AnimatePresence>
         {showDelete && deleteItemId && (
           <motion.div
