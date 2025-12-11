@@ -1,8 +1,8 @@
 /* === Tailwind Layers — Required === */
 /* stylelint-disable at-rule-no-unknown */
-@import "tailwindcss/theme" layer(theme);
-@import "tailwindcss/utilities" layer(utilities);
-@import "tailwindcss/base" layer(base);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* stylelint-enable at-rule-no-unknown */
 
 /* ====================================
