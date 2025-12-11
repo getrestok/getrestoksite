@@ -1,50 +1,67 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { auth } from "../../lib/firebase";
+import { signOut } from "firebase/auth";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex bg-slate-50">
-
-      {/* SIDEBAR stays mounted across all dashboard routes */}
+    <motion.div
+      className="min-h-screen flex bg-slate-100"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
+      {/* SIDEBAR — now global for all dashboard pages */}
       <aside className="w-64 bg-white border-r p-6 hidden md:flex flex-col">
-        <h1 className="text-2xl font-bold mb-8">StockPilot</h1>
+        <motion.h1
+          className="text-2xl font-bold mb-8"
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          StockPilot
+        </motion.h1>
 
         <nav className="flex flex-col gap-2">
-          <a
+          <motion.a
             href="/dashboard"
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
+            whileHover={{ x: 4 }}
           >
             📊 Dashboard
-          </a>
+          </motion.a>
 
-          <a
+          <motion.a
             href="/dashboard/items"
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
+            whileHover={{ x: 4 }}
           >
             📦 Items
-          </a>
+          </motion.a>
 
-          <a
+          <motion.a
             href="/dashboard/settings"
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
+            whileHover={{ x: 4 }}
           >
             ⚙️ Settings
-          </a>
+          </motion.a>
         </nav>
+
+        <motion.button
+          onClick={() => signOut(auth)}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          className="mt-auto bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
+        >
+          Log Out
+        </motion.button>
       </aside>
 
-      {/* PAGE CONTENT AREA */}
-      <motion.main
-        key={Math.random()} // forces animation on route change
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.15 }}
-        className="flex-1 p-10"
-      >
+      {/* MAIN CONTENT WRAPPER */}
+      <main className="flex-1 p-10">
         {children}
-      </motion.main>
-
-    </div>
+      </main>
+    </motion.div>
   );
 }

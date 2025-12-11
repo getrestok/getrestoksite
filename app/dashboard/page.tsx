@@ -6,7 +6,17 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function DashboardHome() {
   const router = useRouter();
@@ -81,6 +91,25 @@ export default function DashboardHome() {
     });
   }
 
+  // -----------------------------
+  // GRAPH DATA
+  // -----------------------------
+  const graphData = items
+    .map((item) => {
+      if (!item.createdAt) return null;
+
+      const created = item.createdAt.toDate();
+      const now = new Date();
+      const diff = Math.floor((now.getTime() - created.getTime()) / 86400000);
+      const daysLeft = Math.max(item.daysLast - diff, 0);
+
+      return {
+        name: item.name,
+        daysLeft,
+      };
+    })
+    .filter(Boolean);
+
   return (
     <motion.div
       className="min-h-screen flex bg-slate-100"
@@ -88,60 +117,6 @@ export default function DashboardHome() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
-
-      {/* =============================== */}
-      {/* SIDEBAR – SAME AS ITEMS PAGE */}
-      {/* =============================== */}
-      <aside className="w-64 bg-white border-r p-6 hidden md:flex flex-col">
-        <motion.h1
-          className="text-2xl font-bold mb-8"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          StockPilot
-        </motion.h1>
-
-        <nav className="flex flex-col gap-2">
-
-          <motion.a
-            href="/dashboard"
-            className="flex items-center gap-3 p-2 rounded-lg bg-slate-100 font-semibold"
-            whileHover={{ x: 4 }}
-          >
-            📊 Dashboard
-          </motion.a>
-
-          <motion.a
-            href="/dashboard/items"
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
-            whileHover={{ x: 4 }}
-          >
-            📦 Items
-          </motion.a>
-
-          <motion.a
-            href="/dashboard/settings"
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100"
-            whileHover={{ x: 4 }}
-          >
-            ⚙️ Settings
-          </motion.a>
-
-        </nav>
-
-        <motion.button
-          onClick={() => auth.signOut()}
-          className="mt-auto bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          Log Out
-        </motion.button>
-      </aside>
-
-      {/* =============================== */}
-      {/* MAIN CONTENT */}
-      {/* =============================== */}
       <main className="flex-1 p-10">
         <motion.h1
           className="text-3xl font-bold"
@@ -159,65 +134,55 @@ export default function DashboardHome() {
           Welcome back, {user?.email}! Here's your supply overview:
         </motion.p>
 
-        {/* =============================== */}
-        {/* STATS CARDS */}
-        {/* =============================== */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
-
-          <motion.div
-            className="p-6 bg-white rounded-xl shadow"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div className="p-6 bg-white rounded-xl shadow">
             <h2 className="text-lg text-slate-600">Total Items</h2>
             <p className="text-4xl font-bold mt-2">{stats.totalItems}</p>
           </motion.div>
 
-          <motion.div
-            className="p-6 bg-white rounded-xl shadow"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
+          <motion.div className="p-6 bg-white rounded-xl shadow">
             <h2 className="text-lg text-slate-600">Running Low (≤ 3 days)</h2>
             <p className="text-4xl font-bold mt-2 text-amber-600">
               {stats.runningLow}
             </p>
           </motion.div>
 
-          <motion.div
-            className="p-6 bg-white rounded-xl shadow"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
+          <motion.div className="p-6 bg-white rounded-xl shadow">
             <h2 className="text-lg text-slate-600">Due Today</h2>
             <p className="text-4xl font-bold mt-2 text-red-600">
               {stats.dueToday}
             </p>
           </motion.div>
-
         </div>
 
-        {/* =============================== */}
-        {/* GRAPH PLACEHOLDER */}
-        {/* =============================== */}
+        {/* Graph */}
         <motion.div
           className="mt-10 bg-white p-6 rounded-xl shadow"
           initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
         >
-          <h2 className="text-xl font-semibold mb-4">Usage Trend (Coming Soon)</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Days Left Per Item
+          </h2>
 
-          <motion.div
-            className="h-64 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35 }}
-          >
-            Graph will go here
-          </motion.div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={graphData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="daysLeft"
+                  stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </motion.div>
       </main>
     </motion.div>
