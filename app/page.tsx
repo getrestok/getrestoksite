@@ -36,6 +36,7 @@ export default function Home() {
               SP
             </motion.div>
             <div>
+              <img src="Logo no text.svg" alt="StockPilot Logo" className="w-8 h-8 md:hidden" />
               <div className="font-semibold">StockPilot</div>
               <div className="text-xs text-slate-500 -mt-1">
                 Your office, always stocked.
