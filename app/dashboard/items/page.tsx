@@ -32,7 +32,8 @@ export default function ItemsPage() {
   const [user, setUser] = useState<any>(null);
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
   const [items, setItems] = useState<ItemDoc[]>([]);
-  const [alertedStatus, setAlertedStatus] = useState<Record<string, "low" | "out">>({});
+  const [alertedStatus, setAlertedStatus] =
+    useState<Record<string, "low" | "out">>({});
 
   // ADD
   const [showAdd, setShowAdd] = useState(false);
@@ -45,34 +46,52 @@ export default function ItemsPage() {
   const [editItem, setEditItem] = useState<ItemDoc | null>(null);
 
   // ============================
-  // STATUS BADGE
+  // STATUS + PROGRESS
   // ============================
   function getStatus(item: ItemDoc) {
     if (!item.createdAt) return null;
 
     const created = item.createdAt.toDate();
-    const diffDays = Math.floor((Date.now() - created.getTime()) / 86400000);
+    const diffDays = Math.floor(
+      (Date.now() - created.getTime()) / 86400000
+    );
     const daysLeft = item.daysLast - diffDays;
 
     if (daysLeft <= 0)
       return {
         label: "Due Today",
-        color: "bg-red-200 text-red-800",
+        color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
         daysLeft: 0,
       };
 
     if (daysLeft <= 3)
       return {
         label: "Running Low",
-        color: "bg-amber-200 text-amber-800",
+        color:
+          "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
         daysLeft,
       };
 
     return {
       label: "OK",
-      color: "bg-green-200 text-green-800",
+      color:
+        "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
       daysLeft,
     };
+  }
+
+  function getProgress(item: ItemDoc) {
+    if (!item.createdAt) return 0;
+
+    const created = item.createdAt.toDate();
+    const diffDays = Math.floor(
+      (Date.now() - created.getTime()) / 86400000
+    );
+
+    const daysLeft = Math.max(item.daysLast - diffDays, 0);
+    const percent = (daysLeft / item.daysLast) * 100;
+
+    return Math.min(100, Math.max(0, percent));
   }
 
   // ============================
@@ -103,12 +122,13 @@ export default function ItemsPage() {
 
           setItems(itemsData);
 
-          // EMAIL ALERTS
           itemsData.forEach((item) => {
             if (!item.createdAt || !currentUser.email) return;
 
             const created = item.createdAt.toDate();
-            const diffDays = Math.floor((Date.now() - created.getTime()) / 86400000);
+            const diffDays = Math.floor(
+              (Date.now() - created.getTime()) / 86400000
+            );
             const daysLeft = Math.max(item.daysLast - diffDays, 0);
 
             let status: "ok" | "low" | "out" = "ok";
@@ -189,7 +209,6 @@ export default function ItemsPage() {
 
   async function handleDeleteItem(id: string) {
     if (!user) return;
-
     await deleteDoc(doc(db, "users", user.uid, "items", id));
   }
 
@@ -212,69 +231,72 @@ export default function ItemsPage() {
   // ============================
   return (
     <motion.div className="p-10 flex-1">
-      <h1 className="text-3xl font-bold">Items</h1>
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+        Items
+      </h1>
 
-      {/* PLAN BANNER */}
+      {/* PLAN INFO */}
       <div className="mt-3 flex items-center justify-between">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           <strong>{items.length}</strong> /{" "}
           {itemLimit === Infinity ? "∞" : itemLimit} items used
         </p>
 
-        <span className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-700">
+        <span className="text-xs px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
           {PLANS[plan].name} Plan
         </span>
       </div>
 
       {atItemLimit && (
-        <div className="mt-4 p-4 rounded-lg bg-amber-100 text-amber-800 text-sm">
-          You’ve reached the <strong>{PLANS[plan].name}</strong> plan limit.
+        <div className="mt-4 p-4 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 text-sm">
+          You’ve reached your plan limit.
           <a href="/#pricing" className="ml-2 underline font-medium">
-            Upgrade to add more items
+            Upgrade
           </a>
         </div>
       )}
 
       {/* HEADER */}
       <div className="mt-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Your Items</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          Your Items
+        </h2>
 
-        {atItemLimit ? (
-          <button
-            className="px-4 py-2 rounded-lg bg-gray-300 text-gray-600 cursor-not-allowed"
-            title="Upgrade to add more items"
-          >
-            + Add Item
-          </button>
-        ) : (
-          <button
-            onClick={() => setShowAdd(true)}
-            className="px-4 py-2 rounded-lg bg-sky-600 text-white"
-          >
-            + Add Item
-          </button>
-        )}
+        <button
+          onClick={() => !atItemLimit && setShowAdd(true)}
+          disabled={atItemLimit}
+          className={`px-4 py-2 rounded-lg text-white ${
+            atItemLimit
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-sky-600 hover:bg-sky-700"
+          }`}
+        >
+          + Add Item
+        </button>
       </div>
 
       {/* ITEMS */}
-      <div className="  p-4
-  border border-slate-200 dark:border-slate-700
-  rounded-lg
-  flex justify-between items-center
-  bg-white dark:bg-slate-800
-  hover:bg-slate-50 dark:hover:bg-slate-700
-  transition
-mt-6 space-y-3">
+      <div className="mt-6 space-y-3">
         {items.map((item) => {
           const status = getStatus(item);
 
           return (
             <div
               key={item.id}
-              className="p-4 border rounded-lg flex justify-between items-center bg-white"
+              className="
+                p-4
+                border border-slate-200 dark:border-slate-700
+                rounded-lg
+                flex justify-between items-center
+                bg-white dark:bg-slate-800
+                hover:bg-slate-50 dark:hover:bg-slate-700
+                transition
+              "
             >
-              <div>
-                <h3 className="font-semibold">{item.name}</h3>
+              <div className="flex-1 pr-4">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                  {item.name}
+                </h3>
 
                 {status && (
                   <span
@@ -284,7 +306,20 @@ mt-6 space-y-3">
                   </span>
                 )}
 
-                <p className="text-sm text-gray-500 mt-2">
+                <div className="mt-3 h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      status?.label === "Due Today"
+                        ? "bg-red-500"
+                        : status?.label === "Running Low"
+                        ? "bg-amber-500"
+                        : "bg-green-500"
+                    }`}
+                    style={{ width: `${getProgress(item)}%` }}
+                  />
+                </div>
+
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
                   Vendor: {item.vendor || "—"}
                 </p>
               </div>
@@ -292,7 +327,7 @@ mt-6 space-y-3">
               <div className="flex gap-2">
                 <button
                   onClick={() => handleRefillItem(item.id)}
-                  className="bg-green-500 text-white px-3 py-1 rounded"
+                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
                 >
                   Refill
                 </button>
@@ -301,13 +336,13 @@ mt-6 space-y-3">
                     setEditItem(item);
                     setShowEdit(true);
                   }}
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteItem(item.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
                 >
                   Delete
                 </button>
@@ -322,10 +357,9 @@ mt-6 space-y-3">
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
           <form
             onSubmit={handleAddItem}
-            className="bg-white p-6 rounded-xl space-y-4 w-full max-w-md"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md"
           >
             <h2 className="text-xl font-semibold">Add Item</h2>
-
             <input
               className="w-full border p-3 rounded"
               placeholder="Item name"
@@ -333,7 +367,6 @@ mt-6 space-y-3">
               onChange={(e) => setName(e.target.value)}
               required
             />
-
             <input
               className="w-full border p-3 rounded"
               type="number"
@@ -342,14 +375,12 @@ mt-6 space-y-3">
               onChange={(e) => setDaysLast(e.target.value)}
               required
             />
-
             <input
               className="w-full border p-3 rounded"
               placeholder="Vendor"
               value={vendor}
               onChange={(e) => setVendor(e.target.value)}
             />
-
             <div className="flex gap-2">
               <button
                 type="button"
@@ -374,10 +405,9 @@ mt-6 space-y-3">
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
           <form
             onSubmit={handleEditSubmit}
-            className="bg-white p-6 rounded-xl space-y-4 w-full max-w-md"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md"
           >
             <h2 className="text-xl font-semibold">Edit Item</h2>
-
             <input
               className="w-full border p-3 rounded"
               value={editItem.name}
@@ -385,7 +415,6 @@ mt-6 space-y-3">
                 setEditItem({ ...editItem, name: e.target.value })
               }
             />
-
             <input
               className="w-full border p-3 rounded"
               type="number"
@@ -397,7 +426,6 @@ mt-6 space-y-3">
                 })
               }
             />
-
             <input
               className="w-full border p-3 rounded"
               value={editItem.vendor || ""}
@@ -405,7 +433,6 @@ mt-6 space-y-3">
                 setEditItem({ ...editItem, vendor: e.target.value })
               }
             />
-
             <div className="flex gap-2">
               <button
                 type="button"
