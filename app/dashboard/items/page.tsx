@@ -45,7 +45,7 @@ export default function ItemsPage() {
   const [editItem, setEditItem] = useState<ItemDoc | null>(null);
 
   // ============================
-  // STATUS
+  // STATUS BADGE
   // ============================
   function getStatus(item: ItemDoc) {
     if (!item.createdAt) return null;
@@ -55,12 +55,24 @@ export default function ItemsPage() {
     const daysLeft = item.daysLast - diffDays;
 
     if (daysLeft <= 0)
-      return { label: "Due Today", color: "bg-red-200 text-red-800", daysLeft: 0 };
+      return {
+        label: "Due Today",
+        color: "bg-red-200 text-red-800",
+        daysLeft: 0,
+      };
 
     if (daysLeft <= 3)
-      return { label: "Running Low", color: "bg-amber-200 text-amber-800", daysLeft };
+      return {
+        label: "Running Low",
+        color: "bg-amber-200 text-amber-800",
+        daysLeft,
+      };
 
-    return { label: "OK", color: "bg-green-200 text-green-800", daysLeft };
+    return {
+      label: "OK",
+      color: "bg-green-200 text-green-800",
+      daysLeft,
+    };
   }
 
   // ============================
@@ -91,6 +103,7 @@ export default function ItemsPage() {
 
           setItems(itemsData);
 
+          // EMAIL ALERTS
           itemsData.forEach((item) => {
             if (!item.createdAt || !currentUser.email) return;
 
@@ -136,7 +149,9 @@ export default function ItemsPage() {
   const planConfig = PLANS[plan];
   const itemLimit =
     "limits" in planConfig ? planConfig.limits.items : Infinity;
-  const atItemLimit = itemLimit !== Infinity && items.length >= itemLimit;
+
+  const atItemLimit =
+    itemLimit !== Infinity && items.length >= itemLimit;
 
   // ============================
   // CRUD
@@ -176,12 +191,6 @@ export default function ItemsPage() {
     if (!user) return;
 
     await deleteDoc(doc(db, "users", user.uid, "items", id));
-
-    setAlertedStatus((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
   }
 
   async function handleEditSubmit(e: React.FormEvent) {
@@ -205,25 +214,49 @@ export default function ItemsPage() {
     <motion.div className="p-10 flex-1">
       <h1 className="text-3xl font-bold">Items</h1>
 
+      {/* PLAN BANNER */}
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-sm text-slate-600">
+          <strong>{items.length}</strong> /{" "}
+          {itemLimit === Infinity ? "∞" : itemLimit} items used
+        </p>
+
+        <span className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-700">
+          {PLANS[plan].name} Plan
+        </span>
+      </div>
+
       {atItemLimit && (
-        <div className="mt-4 p-4 bg-amber-100 text-amber-800 rounded-lg">
-          Plan limit reached ({itemLimit} items)
+        <div className="mt-4 p-4 rounded-lg bg-amber-100 text-amber-800 text-sm">
+          You’ve reached the <strong>{PLANS[plan].name}</strong> plan limit.
+          <a href="/pricing" className="ml-2 underline font-medium">
+            Upgrade to add more items
+          </a>
         </div>
       )}
 
+      {/* HEADER */}
       <div className="mt-6 flex justify-between items-center">
         <h2 className="text-xl font-semibold">Your Items</h2>
-        <button
-          disabled={atItemLimit}
-          onClick={() => setShowAdd(true)}
-          className={`px-4 py-2 rounded-lg text-white ${
-            atItemLimit ? "bg-gray-400" : "bg-sky-600"
-          }`}
-        >
-          + Add Item
-        </button>
+
+        {atItemLimit ? (
+          <button
+            className="px-4 py-2 rounded-lg bg-gray-300 text-gray-600 cursor-not-allowed"
+            title="Upgrade to add more items"
+          >
+            + Add Item
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="px-4 py-2 rounded-lg bg-sky-600 text-white"
+          >
+            + Add Item
+          </button>
+        )}
       </div>
 
+      {/* ITEMS */}
       <div className="mt-6 space-y-3">
         {items.map((item) => {
           const status = getStatus(item);
@@ -231,15 +264,19 @@ export default function ItemsPage() {
           return (
             <div
               key={item.id}
-              className="p-4 border rounded-lg flex justify-between"
+              className="p-4 border rounded-lg flex justify-between items-center bg-white"
             >
               <div>
                 <h3 className="font-semibold">{item.name}</h3>
+
                 {status && (
-                  <span className={`text-xs px-2 py-1 rounded ${status.color}`}>
+                  <span
+                    className={`mt-1 inline-block px-2 py-1 text-xs rounded ${status.color}`}
+                  >
                     {status.label} • {status.daysLeft} days left
                   </span>
                 )}
+
                 <p className="text-sm text-gray-500 mt-2">
                   Vendor: {item.vendor || "—"}
                 </p>
@@ -281,12 +318,45 @@ export default function ItemsPage() {
             className="bg-white p-6 rounded-xl space-y-4 w-full max-w-md"
           >
             <h2 className="text-xl font-semibold">Add Item</h2>
-            <input className="w-full border p-3 rounded" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="w-full border p-3 rounded" type="number" placeholder="Days it lasts" value={daysLast} onChange={(e) => setDaysLast(e.target.value)} />
-            <input className="w-full border p-3 rounded" placeholder="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} />
+
+            <input
+              className="w-full border p-3 rounded"
+              placeholder="Item name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+
+            <input
+              className="w-full border p-3 rounded"
+              type="number"
+              placeholder="Days it lasts"
+              value={daysLast}
+              onChange={(e) => setDaysLast(e.target.value)}
+              required
+            />
+
+            <input
+              className="w-full border p-3 rounded"
+              placeholder="Vendor"
+              value={vendor}
+              onChange={(e) => setVendor(e.target.value)}
+            />
+
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowAdd(false)} className="w-1/2 border p-3 rounded">Cancel</button>
-              <button type="submit" className="w-1/2 bg-sky-600 text-white p-3 rounded">Save</button>
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="w-1/2 border p-3 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 bg-sky-600 text-white p-3 rounded"
+              >
+                Save
+              </button>
             </div>
           </form>
         </div>
@@ -300,12 +370,49 @@ export default function ItemsPage() {
             className="bg-white p-6 rounded-xl space-y-4 w-full max-w-md"
           >
             <h2 className="text-xl font-semibold">Edit Item</h2>
-            <input className="w-full border p-3 rounded" value={editItem.name} onChange={(e) => setEditItem({ ...editItem, name: e.target.value })} />
-            <input className="w-full border p-3 rounded" type="number" value={editItem.daysLast} onChange={(e) => setEditItem({ ...editItem, daysLast: Number(e.target.value) })} />
-            <input className="w-full border p-3 rounded" value={editItem.vendor || ""} onChange={(e) => setEditItem({ ...editItem, vendor: e.target.value })} />
+
+            <input
+              className="w-full border p-3 rounded"
+              value={editItem.name}
+              onChange={(e) =>
+                setEditItem({ ...editItem, name: e.target.value })
+              }
+            />
+
+            <input
+              className="w-full border p-3 rounded"
+              type="number"
+              value={editItem.daysLast}
+              onChange={(e) =>
+                setEditItem({
+                  ...editItem,
+                  daysLast: Number(e.target.value),
+                })
+              }
+            />
+
+            <input
+              className="w-full border p-3 rounded"
+              value={editItem.vendor || ""}
+              onChange={(e) =>
+                setEditItem({ ...editItem, vendor: e.target.value })
+              }
+            />
+
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowEdit(false)} className="w-1/2 border p-3 rounded">Cancel</button>
-              <button type="submit" className="w-1/2 bg-blue-600 text-white p-3 rounded">Save</button>
+              <button
+                type="button"
+                onClick={() => setShowEdit(false)}
+                className="w-1/2 border p-3 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 bg-blue-600 text-white p-3 rounded"
+              >
+                Save
+              </button>
             </div>
           </form>
         </div>
