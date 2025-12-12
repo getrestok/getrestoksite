@@ -30,7 +30,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-between">
           <a className="flex items-center gap-3" href="#">
             <div>
-              <img src="Logo no text.svg" alt="StockPilot Logo" className="w-8 h-8 md:hidden" />
+              <img src="../public/Logo no text.svg" alt="StockPilot Logo" className="w-8 h-8 md:hidden" />
               <div className="font-semibold">StockPilot</div>
               <div className="text-xs text-slate-500 -mt-1">
                 Your office, always stocked.
