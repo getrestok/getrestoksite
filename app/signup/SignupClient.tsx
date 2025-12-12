@@ -21,11 +21,12 @@ export default function SignupPage() {
   // -----------------------------
   // PLAN SELECTION
   // -----------------------------
-  const selectedPlan = params.get("plan") || "basic";
+  
 
-  if (!PLANS[selectedPlan as keyof typeof PLANS]) {
-    throw new Error("Invalid plan selected");
-  }
+  const rawPlan = params.get("plan");
+
+const selectedPlan: keyof typeof PLANS =
+  rawPlan && rawPlan in PLANS ? (rawPlan as keyof typeof PLANS) : "basic";
 
   // -----------------------------
   // FORM STATE
@@ -124,6 +125,22 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSignup} className="mt-6 space-y-4">
+
+            {/* PLAN */}
+<div>
+  <label className="block text-sm font-medium text-zinc-700">
+    Plan
+  </label>
+  <select
+    value={selectedPlan}
+    disabled
+    className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
+  >
+    <option value="basic">Basic — 15 items</option>
+    <option value="pro">Pro — Unlimited items</option>
+    <option value="premium">Premium — Unlimited + multi-location</option>
+  </select>
+</div>
 
           {/* FULL NAME */}
           <div>

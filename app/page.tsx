@@ -168,17 +168,84 @@ export default function Home() {
           </div>
         </section>
 
-        {/* PRICING */}
-        <section id="pricing" className="mt-16">
-          <Reveal><h2 className="text-2xl font-semibold">Pricing</h2></Reveal>
+      {/* PRICING */}
+<section id="pricing" className="mt-20">
+  <Reveal>
+    <h2 className="text-3xl font-bold text-center">Simple, transparent pricing</h2>
+    <p className="mt-3 text-center text-slate-600 max-w-xl mx-auto">
+      Choose the plan that fits your business today — upgrade anytime.
+    </p>
+  </Reveal>
 
-          <div className="mt-6 grid md:grid-cols-2 gap-6">
-            <Reveal delay={0.1}><PriceCard label="Basic" price="$12/mo or $120/yr" desc="15 items • Email alerts • 1 device/location" button={{ label: "Subscribe", href: "/signup?plan=basic", primary: true }} /></Reveal>
-            <Reveal delay={0.2}><PriceCard label="Pro" price="$29/month or $290/yr" desc="Unlimited items • Email alerts • Up to 5 devices/1 location • Email support" button={{ label: "Subscribe", href: "/signup?plan=pro" }} /></Reveal>
-            <Reveal delay={0.2}><PriceCard label="Premium" price="$59/month or $590/yr" desc="Everything in Pro • Unlimted users/3 locations • Dedicated onboarding support" button={{ label: "Subscribe", href: "/signup?plan=premium" }} /></Reveal>
-            <Reveal delay={0.3}><PriceCard label="Enterprise" price="Custom" desc="Coming soon • Expected early to late 2026" button={{ label: "Coming soon", href: "/" }} /></Reveal>
-          </div>
-        </section>
+  <div className="mt-12 grid gap-6 md:grid-cols-3">
+
+    {/* BASIC */}
+    <PricingTier
+      name="Basic"
+      price="$12"
+      subtext="per month • $120 billed yearly"
+      features={[
+        "Up to 15 items",
+        "Email restock alerts",
+        "Single location",
+        "Admin access",
+      ]}
+      cta="Get Started"
+      href="/signup?plan=basic"
+    />
+
+    {/* PRO (HIGHLIGHTED) */}
+    <PricingTier
+      name="Pro"
+      price="$29"
+      subtext="per month • $290 billed yearly"
+      features={[
+        "Unlimited items",
+        "Up to 5 users",
+        "Priority email alerts",
+        "Supplier tracking",
+        "Email support",
+      ]}
+      cta="Start Free Trial"
+      href="/signup?plan=pro"
+      featured
+    />
+
+    {/* PREMIUM */}
+    <PricingTier
+      name="Premium"
+      price="$59"
+      subtext="per month • $590 billed yearly"
+      features={[
+        "Unlimited items",
+        "Unlimited users",
+        "Up to 3 locations",
+        "Advanced analytics",
+        "Priority onboarding",
+      ]}
+      cta="Upgrade to Premium"
+      href="/signup?plan=premium"
+    />
+  </div>
+
+  {/* ENTERPRISE */}
+  <div className="mt-10 max-w-3xl mx-auto">
+    <div className="border rounded-xl p-6 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div>
+        <h3 className="text-lg font-semibold">Enterprise</h3>
+        <p className="text-sm text-slate-600 mt-1">
+          Custom pricing, unlimited locations, dedicated support.
+        </p>
+      </div>
+      <a
+        href="/contact"
+        className="px-5 py-2 rounded-lg border bg-white hover:bg-slate-100"
+      >
+        Contact Sales
+      </a>
+    </div>
+  </div>
+</section>
 
         {/* CTA */}
         <Reveal>
@@ -221,7 +288,7 @@ export default function Home() {
           </div>
 
           <div className="mx-auto max-w-7xl px-6 mt-8 text-center text-xs text-slate-400">
-            © 2025 StockPilot — Built with care.
+            © 2025 StockPilot — Built with care by <a href="https://www.issioffice.com">Inner Space Systems Inc.</a>
           </div>
         </footer>
       </Reveal>
@@ -254,6 +321,62 @@ function DashboardMockup() {
         <button className="bg-sky-600 text-white px-3 py-1 rounded">Reorder</button>
       </div>
     </>
+  );
+}
+
+function PricingTier({
+  name,
+  price,
+  subtext,
+  features,
+  cta,
+  href,
+  featured = false,
+}: any) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className={`rounded-2xl border p-8 shadow-sm bg-white flex flex-col ${
+        featured
+          ? "border-sky-500 ring-2 ring-sky-100"
+          : "border-slate-200"
+      }`}
+    >
+      {featured && (
+        <span className="mb-3 inline-block text-xs font-semibold text-sky-600 bg-sky-50 px-3 py-1 rounded-full self-start">
+          Most Popular
+        </span>
+      )}
+
+      <h3 className="text-xl font-semibold">{name}</h3>
+
+      <div className="mt-4">
+        <span className="text-4xl font-extrabold">{price}</span>
+        <span className="text-slate-500 ml-1">/mo</span>
+      </div>
+
+      <p className="mt-1 text-sm text-slate-500">{subtext}</p>
+
+      <ul className="mt-6 space-y-3 text-sm text-slate-600">
+        {features.map((f: string, i: number) => (
+          <li key={i} className="flex items-start gap-2">
+            <span className="text-sky-600">✓</span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      <a
+        href={href}
+        className={`mt-8 inline-block text-center px-5 py-3 rounded-lg font-medium ${
+          featured
+            ? "bg-sky-600 text-white hover:bg-sky-700"
+            : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+        }`}
+      >
+        {cta}
+      </a>
+    </motion.div>
   );
 }
 
