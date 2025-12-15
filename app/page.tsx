@@ -33,7 +33,7 @@ export default function Home() {
 <a href="/" className="flex items-center gap-3">
   <Image
     src="/logo.svg"
-    alt="StockPilot logo"
+    alt="Restok logo"
     width={40}
     height={40}
     className="shrink-0"
@@ -42,7 +42,7 @@ export default function Home() {
 
   <div>
     <div className="font-semibold text-slate-900 dark:text-white">
-      StockPilot
+      Restok
     </div>
     <div className="text-xs text-slate-500 dark:text-slate-400 -mt-1">
       Your office, always stocked.
@@ -79,7 +79,7 @@ export default function Home() {
               Never run out of supplies again.
             </h1>
             <p className="mt-4 text-lg text-slate-600">
-              StockPilot tracks your recurring business supplies and reminds the right people 
+              Restok tracks your recurring business supplies and reminds the right people 
               when it's time to reorder — before you run out.
             </p>
 
@@ -130,7 +130,7 @@ export default function Home() {
 
           <div className="mt-6 grid md:grid-cols-3 gap-6">
             <Reveal delay={0.1}><Step num="1" title="Add items" desc="Add the supplies your business uses regularly." /></Reveal>
-            <Reveal delay={0.2}><Step num="2" title="Set cadence" desc="Tell StockPilot how long each item lasts, or let it learn." /></Reveal>
+            <Reveal delay={0.2}><Step num="2" title="Set cadence" desc="Tell Restok how long each item lasts, or let it learn." /></Reveal>
             <Reveal delay={0.3}><Step num="3" title="Get reminded" desc="Receive automatic reminders before anything runs out." /></Reveal>
           </div>
         </section>
@@ -163,8 +163,8 @@ export default function Home() {
           <Reveal><h2 className="text-2xl font-semibold">Before & After</h2></Reveal>
 
           <div className="mt-6 grid md:grid-cols-2 gap-6">
-            <Reveal delay={0.1}><Card title="Before StockPilot" items={["Missed orders & last-minute rush", "Spreadsheets that get out of date", "Lost time tracking suppliers"]} /></Reveal>
-            <Reveal delay={0.2}><Card title="After StockPilot" items={["Automated reminders before items run out", "Centralized cadence data", "Faster reorders and less waste"]} /></Reveal>
+            <Reveal delay={0.1}><Card title="Before Restok" items={["Missed orders & last-minute rush", "Spreadsheets that get out of date", "Lost time tracking suppliers"]} /></Reveal>
+            <Reveal delay={0.2}><Card title="After Restok" items={["Automated reminders before items run out", "Centralized cadence data", "Faster reorders and less waste"]} /></Reveal>
           </div>
         </section>
 
@@ -252,7 +252,7 @@ export default function Home() {
           <section className="mt-16 text-center py-10 bg-gradient-to-r from-sky-50 to-white rounded-lg">
             <h3 className="text-2xl font-semibold">Stop guessing when to reorder.</h3>
             <p className="mt-2 text-slate-600">
-              Let StockPilot watch your supplies so you can focus on running your business.
+              Let Restok watch your supplies so you can focus on running your business.
             </p>
             <div className="mt-4">
               <a href="/signup" className="bg-sky-600 text-white px-6 py-3 rounded-lg">
@@ -268,7 +268,7 @@ export default function Home() {
         <footer className="border-t py-8 mt-16">
           <div className="mx-auto max-w-7xl px-6 grid md:grid-cols-3 gap-6 text-sm text-slate-600">
             <div>
-              <div className="font-semibold">StockPilot</div>
+              <div className="font-semibold">Restok</div>
               <div className="mt-2">Smart restock reminders for small businesses.</div>
             </div>
             <div>
@@ -288,7 +288,7 @@ export default function Home() {
           </div>
 
           <div className="mx-auto max-w-7xl px-6 mt-8 text-center text-xs text-slate-400">
-            © 2025 StockPilot — Built with care by <a href="https://www.issioffice.com">Inner Space Systems Inc.</a>
+            © 2025 Restok — Built with care by <a href="https://www.issioffice.com">Inner Space Systems Inc.</a>
           </div>
         </footer>
       </Reveal>
