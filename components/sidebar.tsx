@@ -8,9 +8,9 @@ export default function Sidebar() {
   return (
     <aside
       className="
-        fixed          /* keeps it in place */
+        fixed
         left-0 top-0
-        h-screen       /* full height always */
+        h-screen
         w-64
         bg-white dark:bg-slate-900
         border-r border-slate-200 dark:border-slate-700
@@ -45,6 +45,15 @@ export default function Sidebar() {
           📦 Items
         </motion.a>
 
+        {/* NEW: RESTOCK */}
+        <motion.a
+          href="/dashboard/restock"
+          whileHover={{ x: 4 }}
+          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          🧾 Restock
+        </motion.a>
+
         <motion.a
           href="/dashboard/settings"
           whileHover={{ x: 4 }}
@@ -54,7 +63,7 @@ export default function Sidebar() {
         </motion.a>
       </nav>
 
-      {/* Bottom section (logout + theme toggle) */}
+      {/* Bottom section */}
       <div className="mt-auto flex flex-col gap-3 pt-6">
         <ThemeToggle />
 
