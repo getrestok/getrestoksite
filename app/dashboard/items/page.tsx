@@ -35,6 +35,7 @@ export default function ItemsPage() {
 
   const [user, setUser] = useState<any>(null);
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [items, setItems] = useState<ItemDoc[]>([]);
   const [alertedStatus, setAlertedStatus] =
     useState<Record<string, "low" | "out">>({});
@@ -119,9 +120,19 @@ const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
 
       const userRef = doc(db, "users", currentUser.uid);
 
-unsubUser = onSnapshot(userRef, (snap) => {
-  const rawPlan = snap.data()?.plan;
-  setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+unsubUser = onSnapshot(userRef, (userSnap) => {
+  const data = userSnap.data();
+
+  if (!data?.orgId) return;
+
+  setOrgId(data.orgId);
+
+  const orgRef = doc(db, "organizations", data.orgId);
+
+  onSnapshot(orgRef, (orgSnap) => {
+    const rawPlan = orgSnap.data()?.plan;
+    setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+  });
 });
 
       unsubItems = onSnapshot(

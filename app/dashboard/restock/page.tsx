@@ -21,6 +21,7 @@ export default function RestockPage() {
   const [user, setUser] = useState<any>(null);
   const [items, setItems] = useState<ItemDoc[]>([]);
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [showSavingsModal, setShowSavingsModal] = useState(false);
 
   const isProOrHigher =
@@ -44,10 +45,20 @@ useEffect(() => {
     // Load plan
     const userRef = doc(db, "users", currentUser.uid);
 
-    unsubUser = onSnapshot(userRef, (snap) => {
-      const rawPlan = snap.data()?.plan;
-      setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
-    });
+unsubUser = onSnapshot(userRef, (userSnap) => {
+  const data = userSnap.data();
+
+  if (!data?.orgId) return;
+
+  setOrgId(data.orgId);
+
+  const orgRef = doc(db, "organizations", data.orgId);
+
+  onSnapshot(orgRef, (orgSnap) => {
+    const rawPlan = orgSnap.data()?.plan;
+    setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+  });
+});
 
     // Load items
     unsubItems = onSnapshot(
