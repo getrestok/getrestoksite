@@ -13,18 +13,20 @@ export default function Sidebar() {
 
   // 🔁 Listen for plan changes
   useEffect(() => {
-    if (!auth.currentUser) return;
+  const unsubAuth = auth.onAuthStateChanged((user) => {
+    if (!user) return;
 
     const unsubUser = onSnapshot(
-      doc(db, "users", auth.currentUser.uid),
+      doc(db, "users", user.uid),
       (userSnap) => {
         const orgId = userSnap.data()?.orgId;
         if (!orgId) return;
 
-        return onSnapshot(
+        const unsubOrg = onSnapshot(
           doc(db, "organizations", orgId),
           (orgSnap) => {
             const rawPlan = orgSnap.data()?.plan;
+
             setPlan(
               rawPlan === "pro" ||
                 rawPlan === "premium" ||
@@ -34,11 +36,16 @@ export default function Sidebar() {
             );
           }
         );
+
+        return () => unsubOrg();
       }
     );
 
     return () => unsubUser();
-  }, []);
+  });
+
+  return () => unsubAuth();
+}, []);
 
   return (
     <aside
