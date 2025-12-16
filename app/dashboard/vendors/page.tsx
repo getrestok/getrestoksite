@@ -224,22 +224,22 @@ export default function VendorsPage() {
 
             <input
               required
-              className="w-full border p-3 rounded"
+              className="input"
               placeholder="Vendor name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
 
             <input
-              className="w-full border p-3 rounded"
-              placeholder="Vendor email (optional)"
+              className="input"
+              placeholder="Vendor email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
 
             <input
-              className="w-full border p-3 rounded"
-              placeholder="Vendor website (optional)"
+              className="input"
+              placeholder="Vendor website"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
             />

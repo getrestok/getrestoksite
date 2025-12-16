@@ -182,7 +182,7 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSaveProfile} className="mt-4 space-y-4">
           <input
-            className="w-full p-3 rounded-lg border dark:bg-slate-700"
+            className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Full name"
@@ -190,7 +190,7 @@ export default function SettingsPage() {
 
           <input
             readOnly
-            className="w-full p-3 rounded-lg border bg-slate-100 dark:bg-slate-700"
+            className="input"
             value={user.email}
           />
 
@@ -251,7 +251,7 @@ export default function SettingsPage() {
           <input
             type="password"
             placeholder="Current password"
-            className="w-full p-3 rounded-lg border dark:bg-slate-700"
+            className="input"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
           />
@@ -259,7 +259,7 @@ export default function SettingsPage() {
           <input
             type="password"
             placeholder="New password"
-            className="w-full p-3 rounded-lg border dark:bg-slate-700"
+            className="input"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
@@ -285,7 +285,7 @@ export default function SettingsPage() {
             <input
               type="password"
               placeholder="Password"
-              className="w-full p-3 rounded-lg border dark:bg-slate-700"
+              className="input"
               value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
             />
@@ -293,7 +293,7 @@ export default function SettingsPage() {
             <input
               type="text"
               placeholder='Type "DELETE" to confirm'
-              className="w-full p-3 rounded-lg border dark:bg-slate-700"
+              className="input"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
             />

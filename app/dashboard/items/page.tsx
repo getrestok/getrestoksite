@@ -431,14 +431,14 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
           >
             <h2 className="text-xl font-semibold">Add Item</h2>
             <input
-              className="w-full border p-3 rounded"
+              className="input"
               placeholder="Item name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
             />
             <input
-              className="w-full border p-3 rounded"
+              className="input"
               type="number"
               placeholder="Days it lasts"
               value={daysLast}
@@ -446,7 +446,7 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
               required
             />
            <select
-  className="w-full border p-3 rounded"
+  className="input"
   value={vendorId}
   onChange={(e) => setVendorId(e.target.value)}
 >
@@ -485,14 +485,14 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
           >
             <h2 className="text-xl font-semibold">Edit Item</h2>
             <input
-              className="w-full border p-3 rounded"
+              className="input"
               value={editItem.name}
               onChange={(e) =>
                 setEditItem({ ...editItem, name: e.target.value })
               }
             />
             <input
-              className="w-full border p-3 rounded"
+              className="input"
               type="number"
               value={editItem.daysLast}
               onChange={(e) =>
@@ -503,7 +503,7 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
               }
             />
             <select
-  className="w-full border p-3 rounded"
+  className="input"
   value={editItem.vendorId || ""}
   onChange={(e) =>
     setEditItem({ ...editItem, vendorId: e.target.value })
