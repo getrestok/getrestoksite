@@ -2,9 +2,44 @@
 
 import { motion } from "framer-motion";
 import ThemeToggle from "./ThemeToggle";
-import { auth } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+
+type Plan = "basic" | "pro" | "premium" | "enterprise";
 
 export default function Sidebar() {
+  const [plan, setPlan] = useState<Plan>("basic");
+
+  // 🔁 Listen for plan changes
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const unsubUser = onSnapshot(
+      doc(db, "users", auth.currentUser.uid),
+      (userSnap) => {
+        const orgId = userSnap.data()?.orgId;
+        if (!orgId) return;
+
+        return onSnapshot(
+          doc(db, "organizations", orgId),
+          (orgSnap) => {
+            const rawPlan = orgSnap.data()?.plan;
+            setPlan(
+              rawPlan === "pro" ||
+                rawPlan === "premium" ||
+                rawPlan === "enterprise"
+                ? rawPlan
+                : "basic"
+            );
+          }
+        );
+      }
+    );
+
+    return () => unsubUser();
+  }, []);
+
   return (
     <aside
       className="
@@ -72,6 +107,43 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div className="mt-auto flex flex-col gap-3 pt-6">
+
+        {/* PLAN STATUS */}
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 dark:text-slate-400">
+              Plan
+            </span>
+
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-semibold
+                ${
+                  plan === "basic"
+                    ? "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+                    : plan === "pro"
+                    ? "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300"
+                    : plan === "premium"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                }
+              `}
+            >
+              {plan.toUpperCase()}
+            </span>
+          </div>
+
+          {plan !== "enterprise" && (
+            <button
+              onClick={() =>
+                (window.location.href = "/dashboard/settings/billing")
+              }
+              className="mt-2 w-full text-xs bg-sky-600 hover:bg-sky-700 text-white py-1.5 rounded-md"
+            >
+              {plan === "basic" ? "Upgrade plan" : "Manage plan"}
+            </button>
+          )}
+        </div>
+
         <ThemeToggle />
 
         <motion.button
