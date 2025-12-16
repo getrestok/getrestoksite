@@ -2,26 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../../../lib/firebase";
-import { collection, onSnapshot, doc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PLANS } from "@/lib/plans";
-
-import { updateDoc } from "firebase/firestore";
-import { user } from "firebase-functions/v1/auth";
 
 async function setReorderMethod(
   itemId: string,
   method: "email" | "website"
 ) {
   const uid = auth.currentUser?.uid;
-if (!uid) return;
+  if (!uid) return;
 
-await updateDoc(
-  doc(db, "users", uid, "items", itemId),
-  { reorderMethod: method }
-);
+  await updateDoc(doc(db, "users", uid, "items", itemId), {
+    reorderMethod: method,
+  });
 }
 
 type ItemDoc = {
@@ -41,6 +37,13 @@ type VendorDoc = {
 export default function RestockPage() {
   const router = useRouter();
 
+  const searchParams =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+
+  const focusedItemId = searchParams?.get("itemId");
+
   const [user, setUser] = useState<any>(null);
   const [items, setItems] = useState<ItemDoc[]>([]);
   const [vendors, setVendors] = useState<Record<string, VendorDoc>>({});
@@ -49,8 +52,6 @@ export default function RestockPage() {
 
   const isProOrHigher =
     plan === "pro" || plan === "premium" || plan === "enterprise";
-
-    
 
   // ----------------------------
   // AUTH + LOAD DATA
@@ -75,13 +76,10 @@ export default function RestockPage() {
         if (!orgId) return;
 
         unsubOrg?.();
-        unsubOrg = onSnapshot(
-          doc(db, "organizations", orgId),
-          (orgSnap) => {
-            const rawPlan = orgSnap.data()?.plan;
-            setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
-          }
-        );
+        unsubOrg = onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
+          setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+        });
       });
 
       // VENDORS
@@ -127,51 +125,31 @@ export default function RestockPage() {
     return n.includes("inner space") || n.includes("issi");
   }
 
-  function buildVendorSearchUrl(vendor: VendorDoc, itemName: string) {
-  if (!vendor.website) return null;
-
-  const site = normalizeWebsite(vendor.website)!;
-  const q = encodeURIComponent(itemName);
-  const host = site.toLowerCase();
-
-  // Known vendors (extend anytime)
-  if (host.includes("amazon")) {
-    return `https://www.amazon.com/s?k=${q}`;
-  }
-
-  if (host.includes("walmart")) {
-    return `https://www.walmart.com/search?q=${q}`;
-  }
-
-  if (host.includes("staples")) {
-    return `https://www.staples.com/search?query=${q}`;
-  }
-
-  if (host.includes("officedepot")) {
-    return `https://www.officedepot.com/catalog/search.do?query=${q}`;
-  }
-
-  if (host.includes("costco")) {
-    return `https://www.costco.com/CatalogSearch?keyword=${q}`;
-  }
-
-  // Fallback: Google site search
-  return `https://www.google.com/search?q=site:${encodeURIComponent(
-    new URL(site).hostname
-  )}+${q}`;
-}
-
   function normalizeWebsite(url?: string) {
-  if (!url) return null;
-
-  // If already absolute, return as-is
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
+    if (!url) return null;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `https://${url}`;
   }
 
-  // Otherwise, assume https
-  return `https://${url}`;
-}
+  function buildVendorSearchUrl(vendor: VendorDoc, itemName: string) {
+    if (!vendor.website) return null;
+
+    const site = normalizeWebsite(vendor.website)!;
+    const q = encodeURIComponent(itemName);
+    const host = site.toLowerCase();
+
+    if (host.includes("amazon")) return `https://www.amazon.com/s?k=${q}`;
+    if (host.includes("walmart")) return `https://www.walmart.com/search?q=${q}`;
+    if (host.includes("staples")) return `https://www.staples.com/search?query=${q}`;
+    if (host.includes("officedepot"))
+      return `https://www.officedepot.com/catalog/search.do?query=${q}`;
+    if (host.includes("costco"))
+      return `https://www.costco.com/CatalogSearch?keyword=${q}`;
+
+    return `https://www.google.com/search?q=site:${encodeURIComponent(
+      new URL(site).hostname
+    )}+${q}`;
+  }
 
   function buildInnerSpaceEmail(item: ItemDoc) {
     const subject = `Restock Request – ${item.name}`;
@@ -224,27 +202,6 @@ ${user?.displayName || "—"}`;
         Reorder items using your saved vendors.
       </p>
 
-      {/* PRO+ UPSELL */}
-      {isProOrHigher && (
-        <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 flex justify-between items-center">
-          <p className="text-sm text-sky-800 dark:text-sky-200">
-            💡 Want to potentially save money on your office supplies?
-          </p>
-          <button
-            onClick={() => setShowSavingsModal(true)}
-            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
-          >
-            Learn more
-          </button>
-        </div>
-      )}
-
-      {items.length === 0 && (
-        <div className="mt-10 p-10 border border-dashed rounded-xl text-center text-slate-500 dark:text-slate-400">
-          No items available to restock.
-        </div>
-      )}
-
       <div className="mt-6 space-y-4">
         {items.map((item) => {
           const vendor = item.vendorId
@@ -254,7 +211,13 @@ ${user?.displayName || "—"}`;
           return (
             <div
               key={item.id}
-              className="p-4 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 flex justify-between items-center"
+              className={`p-4 rounded-xl border flex justify-between items-center transition
+                ${
+                  focusedItemId === item.id
+                    ? "bg-sky-50 dark:bg-sky-900/30 border-sky-400"
+                    : "bg-white dark:bg-slate-800 dark:border-slate-700"
+                }
+              `}
             >
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100">
@@ -266,97 +229,65 @@ ${user?.displayName || "—"}`;
               </div>
 
               {!vendor ? (
-  <span className="text-xs italic text-slate-400">
-    No vendor linked
-  </span>
-) : isInnerSpaceVendor(vendor) ? (
-  <a
-    href={buildInnerSpaceEmail(item)}
-    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm"
-  >
-    Email Inner Space
-  </a>
-) : (
-  <div className="flex items-center gap-3">
-    {/* METHOD TOGGLE (only if both exist) */}
-    {vendor.email && vendor.website && (
-      <div className="flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600">
-        {(["email", "website"] as const).map((method) => (
-          <button
-            key={method}
-            onClick={() => setReorderMethod(item.id, method)}
-            className={`px-3 py-1 text-xs ${
-              item.reorderMethod === method ||
-              (!item.reorderMethod && method === "email")
-                ? "bg-sky-600 text-white"
-                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-            }`}
-          >
-            {method === "email" ? "Email" : "Website"}
-          </button>
-        ))}
-      </div>
-    )}
+                <span className="text-xs italic text-slate-400">
+                  No vendor linked
+                </span>
+              ) : isInnerSpaceVendor(vendor) ? (
+                <a
+                  href={buildInnerSpaceEmail(item)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm"
+                >
+                  Email Inner Space
+                </a>
+              ) : (
+                <div className="flex items-center gap-3">
+                  {vendor.email && vendor.website && (
+                    <div className="flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600">
+                      {(["email", "website"] as const).map((method) => (
+                        <button
+                          key={method}
+                          onClick={() => setReorderMethod(item.id, method)}
+                          className={`px-3 py-1 text-xs ${
+                            item.reorderMethod === method ||
+                            (!item.reorderMethod && method === "email")
+                              ? "bg-sky-600 text-white"
+                              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                          }`}
+                        >
+                          {method === "email" ? "Email" : "Website"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-    {/* ACTION BUTTON */}
-    {((item.reorderMethod ?? "email") === "email" && vendor.email) ? (
-      <a
-        href={buildVendorEmail(vendor, item)}
-        className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
-      >
-        Email Vendor
-      </a>
-    ) : vendor.website ? (
-      <a
-        href={buildVendorSearchUrl(vendor, item.name)!}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
-      >
-        Search for item
-      </a>
-    ) : (
-      <span className="text-xs italic text-slate-400">
-        No contact info
-      </span>
-    )}
-  </div>
-)}
+                  {((item.reorderMethod ?? "email") === "email" &&
+                  vendor.email) ? (
+                    <a
+                      href={buildVendorEmail(vendor, item)}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                    >
+                      Email Vendor
+                    </a>
+                  ) : vendor.website ? (
+                    <a
+                      href={buildVendorSearchUrl(vendor, item.name)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                    >
+                      Search for item
+                    </a>
+                  ) : (
+                    <span className="text-xs italic text-slate-400">
+                      No contact info
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-
-      {/* SAVINGS MODAL */}
-      {showSavingsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Save on Office Supplies
-            </h2>
-
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Want to potentially save money on your office supplies? Switch your vendor to <strong>Inner Space Systems</strong> to send us an email!
-            </p>
-
-            <a
-              href="https://www.issioffice.com/office-supplies"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-center bg-sky-600 hover:bg-sky-700 text-white py-2 rounded"
-            >
-              Visit Inner Space Systems's Website
-            </a>
-
-            <button
-              onClick={() => setShowSavingsModal(false)}
-              className="w-full border border-slate-300 dark:border-slate-600 py-2 rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </motion.main>
   );
 }
