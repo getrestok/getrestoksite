@@ -77,6 +77,35 @@ type ItemDoc = {
   });
 }
 
+useEffect(() => {
+  if (!user) return;
+
+  const unsubUser = onSnapshot(
+    doc(db, "users", user.uid),
+    (userSnap) => {
+      const orgId = userSnap.data()?.orgId;
+      if (!orgId) return;
+
+      const unsubOrg = onSnapshot(
+        doc(db, "organizations", orgId),
+        (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
+          setPlan(
+            rawPlan === "pro" ||
+              rawPlan === "premium" ||
+              rawPlan === "enterprise"
+              ? rawPlan
+              : "basic"
+          );
+        }
+      );
+
+      return () => unsubOrg();
+    }
+  );
+
+  return () => unsubUser();
+}, [user]);
 
   // FETCH ITEMS
   useEffect(() => {
@@ -94,20 +123,23 @@ type ItemDoc = {
       calculateStats(data);
 
       // 🔔 ATTENTION CHECK (once per session)
-      const needsAttentionItems = data.filter(needsAttention);
-const dismissed = sessionStorage.getItem("restok_attention_dismissed");
+      useEffect(() => {
+  if (!items.length) return;
 
-const isProOrHigher =
-  plan === "pro" || plan === "premium" || plan === "enterprise";
+  const dismissed = sessionStorage.getItem("restok_attention_dismissed");
+  if (dismissed) return;
 
-if (
-  isProOrHigher &&
-  needsAttentionItems.length > 0 &&
-  !dismissed
-) {
+  const isProOrHigher =
+    plan === "pro" || plan === "premium" || plan === "enterprise";
+
+  if (!isProOrHigher) return;
+
+  const needsAttentionItems = items.filter(needsAttention);
+  if (needsAttentionItems.length === 0) return;
+
   setAttentionItems(needsAttentionItems);
   setShowAttentionModal(true);
-}
+}, [items, plan]);
     }
   );
 
@@ -250,9 +282,19 @@ if (
 {/*   ATTENTION POPUP MODAL   */}
 {/* ========================== */}
 {showAttentionModal && (
-  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-lg w-full space-y-4 shadow-xl">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
+  >
+    <motion.div
+      initial={{ scale: 0.95, y: 10, opacity: 0 }}
+      animate={{ scale: 1, y: 0, opacity: 1 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-lg w-full space-y-4 shadow-xl"
+    >
+      <h2 className="text-lg font-semibold">
         🔔 Take a look at these items
       </h2>
 
@@ -262,15 +304,18 @@ if (
 
       <div className="space-y-2 max-h-60 overflow-y-auto">
         {attentionItems.map((item) => (
-          <div
+          <motion.div
             key={item.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
             className="flex justify-between items-center text-sm p-2 rounded bg-slate-100 dark:bg-slate-700"
           >
             <span className="font-medium">{item.name}</span>
             <span className="text-xs text-amber-600 dark:text-amber-300">
               Needs attention
             </span>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -280,25 +325,24 @@ if (
             sessionStorage.setItem("restok_attention_dismissed", "true");
             setShowAttentionModal(false);
           }}
-          className="w-1/2 border border-slate-300 dark:border-slate-600 py-2 rounded-md"
+          className="w-1/2 border py-2 rounded-md"
         >
           Later
         </button>
 
         <button
-  onClick={() => {
-    sessionStorage.setItem("restok_attention_dismissed", "true");
-
-    const ids = attentionItems.map(i => i.id).join(",");
-    router.push(`/dashboard/restock?review=${ids}`);
-  }}
-  className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
->
-  Review items
-</button>
+          onClick={() => {
+            sessionStorage.setItem("restok_attention_dismissed", "true");
+            const ids = attentionItems.map((i) => i.id).join(",");
+            router.push(`/dashboard/restock?review=${ids}`);
+          }}
+          className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
+        >
+          Review items
+        </button>
       </div>
-    </div>
-  </div>
+    </motion.div>
+  </motion.div>
 )}
     </motion.main>
   );
