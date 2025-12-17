@@ -3,18 +3,24 @@ import Stripe from "stripe";
 import { db } from "@/lib/firebaseAdmin";
 import { hashPassword } from "@/lib/password";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing STRIPE_SECRET_KEY");
-}
-
-if (!process.env.STRIPE_PRO_PRICE_ID) {
-  throw new Error("Missing STRIPE_PRO_PRICE_ID");
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export async function POST(req: Request) {
   try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Stripe not configured" },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.STRIPE_PRO_PRICE_ID) {
+      return NextResponse.json(
+        { error: "Stripe price not configured" },
+        { status: 500 }
+      );
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
     const { email, password, name, phone, plan } = await req.json();
 
     if (!email || !password || !plan) {
@@ -24,7 +30,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 Hash password BEFORE storing
     const passwordHash = await hashPassword(password);
 
     const session = await stripe.checkout.sessions.create({
@@ -40,7 +45,7 @@ export async function POST(req: Request) {
 
       line_items: [
         {
-          price: process.env.STRIPE_PRO_PRICE_ID!,
+          price: process.env.STRIPE_PRO_PRICE_ID,
           quantity: 1,
         },
       ],
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create checkout error:", err);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
