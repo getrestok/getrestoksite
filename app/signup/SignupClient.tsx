@@ -2,16 +2,6 @@
 
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import {
-  createUserWithEmailAndPassword,
-  updateProfile,
-} from "firebase/auth";
-import { auth, db } from "../../lib/firebase";
-import {
-  doc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
 import { PLANS } from "@/lib/plans";
 
 export default function SignupPage() {
@@ -51,42 +41,41 @@ const [selectedPlan, setSelectedPlan] =
     setError("");
 
     try {
-      // 1️⃣ Create Firebase Auth user
-      const userCred = await createUserWithEmailAndPassword(
-        auth,
+
+      async function handleSignup(e: React.FormEvent) {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
+
+  try {
+    const res = await fetch("/api/stripe/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         email,
-        password
-      );
-
-      const user = userCred.user;
-
-      // 2️⃣ Set display name
-      await updateProfile(user, {
-        displayName: name,
-      });
-
-      // 3️⃣ Create organization
-      const orgRef = doc(db, "organizations", user.uid);
-
-      await setDoc(orgRef, {
-  name: orgName,
-  ownerId: user.uid,
-  plan: selectedPlan,
-  status: "active", // or remove status entirely if you want
-  createdAt: serverTimestamp(),
-});
-
-      // 4️⃣ Create user profile
-      await setDoc(doc(db, "users", user.uid), {
+        password,
         name,
-        email,
-        orgId: user.uid,
-        role: "admin",
-        createdAt: serverTimestamp(),
-      });
+        orgName,
+        plan: selectedPlan,
+      }),
+    });
 
-      // 5️⃣ Redirect (Stripe comes next)
-      router.push("/dashboard");
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to start checkout");
+    }
+
+    // 🚀 Redirect to Stripe Checkout
+    window.location.href = data.url;
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || "Signup failed");
+    setLoading(false);
+  }
+}
+     
+      
 
     } catch (err: any) {
       console.error(err);
