@@ -8,6 +8,7 @@ export default function SignupPage() {
   const router = useRouter();
   const params = useSearchParams();
 
+  
   // -----------------------------
 // PLAN SELECTION (FIXED)
 // -----------------------------
@@ -28,6 +29,7 @@ const [selectedPlan, setSelectedPlan] =
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,13 +38,6 @@ const [selectedPlan, setSelectedPlan] =
   // SIGNUP HANDLER
   // -----------------------------
   async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-
-      async function handleSignup(e: React.FormEvent) {
   e.preventDefault();
   setLoading(true);
   setError("");
@@ -75,16 +70,6 @@ const [selectedPlan, setSelectedPlan] =
   }
 }
      
-      
-
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Signup failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   // -----------------------------
   // UI
   // -----------------------------
@@ -169,6 +154,21 @@ const [selectedPlan, setSelectedPlan] =
               className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
             />
           </div>
+
+          {/* PHONE */}
+<div>
+  <label className="block text-sm font-medium text-zinc-700">
+    Phone Number
+  </label>
+  <input
+    type="tel"
+    required
+    placeholder="(555) 123-4567"
+    value={phone}
+    onChange={(e) => setPhone(e.target.value)}
+    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+  />
+</div>
 
           {/* EMAIL */}
           <div>
