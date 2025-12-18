@@ -1,103 +1,16 @@
-"use client";
-
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../lib/firebase";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import LoginClient from "./login-client";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const params = useSearchParams();
-const showSetupMessage = params.get("setup") === "1";
-
-  async function handleLogin(e: any) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-8">
-        <h1 className="text-2xl font-bold text-center">Log in</h1>
-        <p className="text-slate-500 text-center mt-2">Access your StockPilot account</p>
-
-        {error && (
-          <p className="text-red-600 text-center mt-3 bg-red-50 p-2 rounded">
-            {error}
-          </p>
-        )}
-
-        <a
-  href="/"
-  className="absolute top-6 left-6 text-sky-600 font-medium hover:underline"
->
-  ← Back to Home
-</a>
-
-{showSetupMessage && (
-  <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
-    <strong>Account created successfully 🎉</strong>
-    <p className="mt-1">
-      We’ve sent you an email to set your password.
-      <br />
-      Please check your inbox and spam folder.
-    </p>
-  </div>
-)}
-
-
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
-          <div>
-            <label className="text-sm text-slate-600">Email</label>
-            <input
-              type="email"
-              className="mt-1 w-full rounded-lg border p-3"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-slate-600">Password</label>
-            <input
-              type="password"
-              className="mt-1 w-full rounded-lg border p-3"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-sky-600 text-white p-3 rounded-lg font-medium hover:opacity-95"
-          >
-            {loading ? "Logging in..." : "Log in"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-slate-500 mt-4">
-          Don’t have an account?
-          <a href="/signup" className="text-sky-600 ml-1">Sign up</a>
-        </p>
-      </div>
-    </div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-slate-500">
+          Loading…
+        </div>
+      }
+    >
+      <LoginClient />
+    </Suspense>
   );
 }
