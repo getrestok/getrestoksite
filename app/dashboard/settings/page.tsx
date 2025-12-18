@@ -91,6 +91,20 @@ const [orgId, setOrgId] = useState<string | null>(null);
     return () => unsub();
   }, [user]);
 
+
+  useEffect(() => {
+  // wait so the page can render first
+  const hash = window.location.hash;
+
+  if (!hash) return;
+
+  const el = document.querySelector(hash);
+  if (!el) return;
+
+  setTimeout(() => {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 200);
+}, []);
   
 
   useEffect(() => {
@@ -290,7 +304,7 @@ const [orgId, setOrgId] = useState<string | null>(null);
       </section>
 
       {/* BILLING */}
-<section className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl">
+<section id="billing" className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl">
   <h2 className="text-xl font-semibold">Billing</h2>
 
   <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">

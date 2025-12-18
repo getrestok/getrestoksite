@@ -20,6 +20,28 @@ async function setReorderMethod(
   });
 }
 
+const modalBackdrop = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 }
+};
+
+const modalPanel = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 220, damping: 18 }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 10,
+    transition: { duration: 0.15 }
+  }
+};
+
 type ItemDoc = {
   id: string;
   name: string;

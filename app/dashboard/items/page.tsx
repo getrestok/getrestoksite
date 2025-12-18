@@ -17,12 +17,33 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PLANS } from "@/lib/plans";
 
+const modalBackdrop = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+} as const;
+
+const modalPanel = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 220, damping: 18 },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 10,
+    transition: { duration: 0.15 },
+  },
+} as const;
 
 type ItemDoc = {
   id: string;
   name: string;
-  vendorId?: string;   // ✅ NEW (preferred)
-  vendor?: string;     // ⚠️ legacy fallback
+  vendorId?: string;
+  vendor?: string;
   daysLast: number;
   notes?: string;
   category?: string;
@@ -48,28 +69,23 @@ export default function ItemsPage() {
     useState<Record<string, "low" | "out">>({});
 
   const [vendors, setVendors] = useState<VendorDoc[]>([]);
-const [vendorId, setVendorId] = useState("");  
+  const [vendorId, setVendorId] = useState("");
 
   // ADD
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [daysLast, setDaysLast] = useState("");
-  
 
   // EDIT
   const [showEdit, setShowEdit] = useState(false);
   const [editItem, setEditItem] = useState<ItemDoc | null>(null);
 
   // DELETE CONFIRM
-const [showDelete, setShowDelete] = useState(false);
-const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
 
-  // ============================
-  // STATUS + PROGRESS
-  // ============================
   function getStatus(item: ItemDoc) {
     if (!item.createdAt) return null;
-
     const created = item.createdAt.toDate();
     const diffDays = Math.floor(
       (Date.now() - created.getTime()) / 86400000
@@ -100,30 +116,24 @@ const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
   }
 
   function getVendorName(item: ItemDoc) {
-  if (item.vendorId) {
-    const v = vendors.find((v) => v.id === item.vendorId);
-    return v?.name || "—";
+    if (item.vendorId) {
+      const v = vendors.find((v) => v.id === item.vendorId);
+      return v?.name || "—";
+    }
+    return item.vendor || "—";
   }
-  return item.vendor || "—"; // legacy fallback
-}
 
   function getProgress(item: ItemDoc) {
     if (!item.createdAt) return 0;
-
     const created = item.createdAt.toDate();
     const diffDays = Math.floor(
       (Date.now() - created.getTime()) / 86400000
     );
-
     const daysLeft = Math.max(item.daysLast - diffDays, 0);
     const percent = (daysLeft / item.daysLast) * 100;
-
     return Math.min(100, Math.max(0, percent));
   }
 
-  // ============================
-  // AUTH + DATA
-  // ============================
   useEffect(() => {
     let unsubItems: (() => void) | undefined;
     let unsubUser: (() => void) | undefined;
@@ -135,35 +145,30 @@ const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
       }
 
       onSnapshot(
-  collection(db, "users", currentUser.uid, "vendors"),
-  (snap) => {
-    const vendorData = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    })) as VendorDoc[];
-
-    setVendors(vendorData);
-  }
-);
+        collection(db, "users", currentUser.uid, "vendors"),
+        (snap) => {
+          const vendorData = snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          })) as VendorDoc[];
+          setVendors(vendorData);
+        }
+      );
 
       setUser(currentUser);
 
       const userRef = doc(db, "users", currentUser.uid);
 
-unsubUser = onSnapshot(userRef, (userSnap) => {
-  const data = userSnap.data();
-
-  if (!data?.orgId) return;
-
-  setOrgId(data.orgId);
-
-  const orgRef = doc(db, "organizations", data.orgId);
-
-  onSnapshot(orgRef, (orgSnap) => {
-    const rawPlan = orgSnap.data()?.plan;
-    setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
-  });
-});
+      unsubUser = onSnapshot(userRef, (userSnap) => {
+        const data = userSnap.data();
+        if (!data?.orgId) return;
+        setOrgId(data.orgId);
+        const orgRef = doc(db, "organizations", data.orgId);
+        onSnapshot(orgRef, (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
+          setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+        });
+      });
 
       unsubItems = onSnapshot(
         collection(db, "users", currentUser.uid, "items"),
@@ -177,7 +182,6 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
 
           itemsData.forEach((item) => {
             if (!item.createdAt || !currentUser.email) return;
-
             const created = item.createdAt.toDate();
             const diffDays = Math.floor(
               (Date.now() - created.getTime()) / 86400000
@@ -187,11 +191,8 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
             let status: "ok" | "low" | "out" = "ok";
             if (daysLeft <= 0) status = "out";
             else if (daysLeft <= 3) status = "low";
-
             if (status === "ok") return;
             if (alertedStatus[item.id] === status) return;
-
-           
 
             setAlertedStatus((prev) => ({ ...prev, [item.id]: status }));
           });
@@ -206,29 +207,22 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
     };
   }, [router, alertedStatus]);
 
-  // ============================
-  // PLAN LIMIT
-  // ============================
   const planConfig = PLANS[plan];
   const itemLimit =
     "limits" in planConfig ? planConfig.limits.items : Infinity;
-
   const atItemLimit =
     itemLimit !== Infinity && items.length >= itemLimit;
 
-  // ============================
-  // CRUD
-  // ============================
   async function handleAddItem(e: React.FormEvent) {
     e.preventDefault();
     if (!user || atItemLimit) return;
 
-   await addDoc(collection(db, "users", user.uid, "items"), {
-  name,
-  vendorId: vendorId || null,
-  daysLast: Number(daysLast),
-  createdAt: serverTimestamp(),
-});
+    await addDoc(collection(db, "users", user.uid, "items"), {
+      name,
+      vendorId: vendorId || null,
+      daysLast: Number(daysLast),
+      createdAt: serverTimestamp(),
+    });
 
     setName("");
     setDaysLast("");
@@ -237,16 +231,12 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
   }
 
   async function handleRefillItem(id: string) {
-  if (!user) return;
-
-  // 1️⃣ Mark item as refilled immediately
-  await updateDoc(doc(db, "users", user.uid, "items", id), {
-    createdAt: new Date(),
-  });
-
-  // 2️⃣ Send user to restock page (NO params)
-  router.push("/dashboard/restock");
-}
+    if (!user) return;
+    await updateDoc(doc(db, "users", user.uid, "items", id), {
+      createdAt: new Date(),
+    });
+    router.push("/dashboard/restock");
+  }
 
   async function handleDeleteItem(id: string) {
     if (!user) return;
@@ -258,25 +248,21 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
     if (!user || !editItem) return;
 
     await updateDoc(doc(db, "users", user.uid, "items", editItem.id), {
-  name: editItem.name,
-  vendorId: editItem.vendorId || null,
-  daysLast: Number(editItem.daysLast),
-});
+      name: editItem.name,
+      vendorId: editItem.vendorId || null,
+      daysLast: Number(editItem.daysLast),
+    });
 
     setShowEdit(false);
     setEditItem(null);
   }
 
-  // ============================
-  // UI
-  // ============================
   return (
     <motion.div className="p-10 flex-1 max-w-5x1 mx-auto">
       <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
         Items
       </h1>
 
-      {/* PLAN INFO */}
       <div className="mt-3 flex items-center justify-between">
         <p className="text-sm text-slate-600 dark:text-slate-400">
           <strong>{items.length}</strong> /{" "}
@@ -297,13 +283,14 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
         </div>
       )}
 
-      {/* HEADER */}
       <div className="mt-6 flex justify-between items-center">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           Your Items
         </h2>
 
-        <button
+        <motion.button
+          whileHover={{ scale: atItemLimit ? 1 : 1.03 }}
+          whileTap={{ scale: atItemLimit ? 1 : 0.96 }}
           onClick={() => !atItemLimit && setShowAdd(true)}
           disabled={atItemLimit}
           className={`px-4 py-2 rounded-lg text-white ${
@@ -313,37 +300,33 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
           }`}
         >
           + Add Item
-        </button>
+        </motion.button>
       </div>
 
-      {/* ITEMS */}
       <div className="mt-6 space-y-3">
-{items.length === 0 && (
-  <div className="p-10 border border-dashed rounded-xl text-center text-slate-500 dark:text-slate-400">
-    <p className="text-lg font-medium">No items yet</p>
-    <p className="text-sm mt-1">
-      Add your first supply to start tracking restocks.
-    </p>
-  </div>
-)}
+        {items.length === 0 && (
+          <div className="p-10 border border-dashed rounded-xl text-center text-slate-500 dark:text-slate-400">
+            <p className="text-lg font-medium">No items yet</p>
+            <p className="text-sm mt-1">
+              Add your first supply to start tracking restocks.
+            </p>
+          </div>
+        )}
 
         {items.map((item) => {
           const status = getStatus(item);
 
           return (
-           <div
-  key={item.id}
-  className="
-    p-4
-    border border-slate-200 dark:border-slate-700
-    rounded-xl
-    flex justify-between items-center
-    bg-white dark:bg-slate-800
-    hover:shadow-sm
-    hover:bg-slate-50 dark:hover:bg-slate-700
-    transition-all
-  "
->
+            <div
+              key={item.id}
+              className="
+                p-4 border border-slate-200 dark:border-slate-700
+                rounded-xl flex justify-between items-center
+                bg-white dark:bg-slate-800
+                hover:shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700
+                transition-all
+              "
+            >
               <div className="flex-1 pr-4">
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                   {item.name}
@@ -358,17 +341,17 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
                 )}
 
                 <div className="mt-3 h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-  <div
-    className={`h-full rounded-full transition-all duration-700 ease-out ${
-      status?.label === "Due Today"
-        ? "bg-red-500"
-        : status?.label === "Running Low"
-        ? "bg-amber-500"
-        : "bg-green-500"
-    }`}
-    style={{ width: `${getProgress(item)}%` }}
-  />
-</div>
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      status?.label === "Due Today"
+                        ? "bg-red-500"
+                        : status?.label === "Running Low"
+                        ? "bg-amber-500"
+                        : "bg-green-500"
+                    }`}
+                    style={{ width: `${getProgress(item)}%` }}
+                  />
+                </div>
 
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
                   Vendor: {getVendorName(item)}
@@ -376,13 +359,18 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
               </div>
 
               <div className="flex gap-2 shrink-0">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => handleRefillItem(item.id)}
                   className="px-3 py-1.5 rounded-md text-sm bg-green-500 hover:bg-green-600 text-white"
                 >
                   Refill
-                </button>
-                <button
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => {
                     setEditItem(item);
                     setShowEdit(true);
@@ -390,16 +378,19 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
                   className="px-3 py-1.5 rounded-md text-sm bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   Edit
-                </button>
-                <button
-  onClick={() => {
-    setDeleteItem(item);
-    setShowDelete(true);
-  }}
-  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
->
-  Delete
-</button>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setDeleteItem(item);
+                    setShowDelete(true);
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </motion.button>
               </div>
             </div>
           );
@@ -408,12 +399,23 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
 
       {/* ADD MODAL */}
       {showAdd && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <form
+        <motion.div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          <motion.form
             onSubmit={handleAddItem}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md"
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md shadow-2xl"
           >
             <h2 className="text-xl font-semibold">Add Item</h2>
+
             <input
               className="input"
               placeholder="Item name"
@@ -421,6 +423,7 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
               onChange={(e) => setName(e.target.value)}
               required
             />
+
             <input
               className="input"
               type="number"
@@ -429,52 +432,68 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
               onChange={(e) => setDaysLast(e.target.value)}
               required
             />
-           
 
-<select
-  className="input"
-  value={vendorId}
-  onChange={(e) => setVendorId(e.target.value)}
-  disabled={vendors.length === 0}
->
-  <option value="">
-    {vendors.length === 0
-      ? "No vendors yet — add one first"
-      : "Select vendor (optional)"}
-  </option>
-  {vendors.map((v) => (
-    <option key={v.id} value={v.id}>
-      {v.name}
-    </option>
-  ))}
-</select>
+            <select
+              className="input"
+              value={vendorId}
+              onChange={(e) => setVendorId(e.target.value)}
+              disabled={vendors.length === 0}
+            >
+              <option value="">
+                {vendors.length === 0
+                  ? "No vendors yet — add one first"
+                  : "Select vendor (optional)"}
+              </option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+
             <div className="flex gap-2">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={() => setShowAdd(false)}
                 className="w-1/2 border p-3 rounded"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
                 type="submit"
                 className="w-1/2 bg-sky-600 text-white p-3 rounded"
               >
                 Save
-              </button>
+              </motion.button>
             </div>
-          </form>
-        </div>
+          </motion.form>
+        </motion.div>
       )}
 
       {/* EDIT MODAL */}
       {showEdit && editItem && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <form
+        <motion.div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          <motion.form
             onSubmit={handleEditSubmit}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md"
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-full max-w-md shadow-2xl"
           >
             <h2 className="text-xl font-semibold">Edit Item</h2>
+
             <input
               className="input"
               value={editItem.name}
@@ -482,6 +501,7 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
                 setEditItem({ ...editItem, name: e.target.value })
               }
             />
+
             <input
               className="input"
               type="number"
@@ -493,84 +513,106 @@ unsubUser = onSnapshot(userRef, (userSnap) => {
                 })
               }
             />
+
             <select
-  className="input"
-  value={editItem.vendorId || ""}
-  onChange={(e) =>
-    setEditItem({ ...editItem, vendorId: e.target.value })
-  }
->
-  <option value="">Select vendor</option>
-  {vendors.map((v) => (
-    <option key={v.id} value={v.id}>
-      {v.name}
-    </option>
-  ))}
-</select>
+              className="input"
+              value={editItem.vendorId || ""}
+              onChange={(e) =>
+                setEditItem({
+                  ...editItem,
+                  vendorId: e.target.value,
+                })
+              }
+            >
+              <option value="">Select vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+
             <div className="flex gap-2">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={() => setShowEdit(false)}
                 className="w-1/2 border p-3 rounded"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
                 type="submit"
                 className="w-1/2 bg-blue-600 text-white p-3 rounded"
               >
                 Save
-              </button>
+              </motion.button>
             </div>
-          </form>
-        </div>
-        
-
-
+          </motion.form>
+        </motion.div>
       )}
 
-      {/* DELETE CONFIRM MODAL */}
-{showDelete && deleteItem && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        Delete item?
-      </h2>
-
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Are you sure you want to delete{" "}
-        <span className="font-medium text-slate-900 dark:text-slate-100">
-          {deleteItem.name}
-        </span>
-        ? This action cannot be undone.
-      </p>
-
-      <div className="flex gap-2 pt-2">
-        <button
-          onClick={() => {
-            setShowDelete(false);
-            setDeleteItem(null);
-          }}
-          className="w-1/2 border border-slate-300 dark:border-slate-600 p-3 rounded-lg"
+      {/* DELETE CONFIRM */}
+      {showDelete && deleteItem && (
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
         >
-          Cancel
-        </button>
+          <motion.div
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
+          >
+            <h2 className="text-lg font-semibold">
+              Delete item?
+            </h2>
 
-        <button
-          onClick={async () => {
-            await handleDeleteItem(deleteItem.id);
-            setShowDelete(false);
-            setDeleteItem(null);
-          }}
-          className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Are you sure you want to delete{" "}
+              <span className="font-medium">
+                {deleteItem.name}
+              </span>
+              ? This cannot be undone.
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  setShowDelete(false);
+                  setDeleteItem(null);
+                }}
+                className="w-1/2 border p-3 rounded-lg"
+              >
+                Cancel
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={async () => {
+                  await handleDeleteItem(deleteItem.id);
+                  setShowDelete(false);
+                  setDeleteItem(null);
+                }}
+                className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg"
+              >
+                Delete
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
-
