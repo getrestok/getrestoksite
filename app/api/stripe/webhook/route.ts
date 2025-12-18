@@ -29,6 +29,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  console.log("🔔 Stripe event received:", event.type);
+
+  
+
+
   // ✅ PAYMENT CONFIRMED
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -45,6 +50,13 @@ export async function POST(req: Request) {
     const pending = pendingSnap.data()!;
     const { email, name, phone, plan } = pending;
 
+    // 🚫 Prevent duplicate processing
+const existingUser = await adminAuth.getUserByEmail(email).catch(() => null);
+if (existingUser) {
+  console.log("User already exists, skipping creation:", email);
+  return NextResponse.json({ received: true });
+}
+
     // 2️⃣ Create Firebase Auth user
     const userRecord = await adminAuth.createUser({
       email,
@@ -56,7 +68,7 @@ export async function POST(req: Request) {
       name: name || "My Organization",
       ownerId: userRecord.uid,
       plan,
-      stripeCustomerId: session.customer,
+      stripeCustomerId: session.customer ?? null,
       stripeSubscriptionId: session.subscription,
       createdAt: Timestamp.now(),
     });
