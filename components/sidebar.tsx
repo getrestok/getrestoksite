@@ -11,14 +11,12 @@ type Plan = "basic" | "pro" | "premium" | "enterprise";
 export default function Sidebar() {
   const [plan, setPlan] = useState<Plan>("basic");
 
-  // 🔁 Listen for plan changes
+  // 🔁 Listen for plan + org changes
   useEffect(() => {
-  const unsubAuth = auth.onAuthStateChanged((user) => {
-    if (!user) return;
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) return;
 
-    const unsubUser = onSnapshot(
-      doc(db, "users", user.uid),
-      (userSnap) => {
+      const unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
         const orgId = userSnap.data()?.orgId;
         if (!orgId) return;
 
@@ -29,8 +27,8 @@ export default function Sidebar() {
 
             setPlan(
               rawPlan === "pro" ||
-                rawPlan === "premium" ||
-                rawPlan === "enterprise"
+              rawPlan === "premium" ||
+              rawPlan === "enterprise"
                 ? rawPlan
                 : "basic"
             );
@@ -38,31 +36,31 @@ export default function Sidebar() {
         );
 
         return () => unsubOrg();
-      }
-    );
+      });
 
-    return () => unsubUser();
-  });
+      return () => unsubUser();
+    });
 
-  return () => unsubAuth();
-}, []);
+    return () => unsubAuth();
+  }, []);
 
   return (
     <aside
-  className="
-    hidden md:flex
-    fixed
-    left-0 top-0
-    h-screen
-    w-64
-    bg-white dark:bg-slate-900
-    border-r border-slate-200 dark:border-slate-700
-    p-6
-    flex-col
-  "
->
+      className="
+        hidden md:flex
+        fixed
+        left-0 top-0
+        h-screen
+        w-64
+        bg-white dark:bg-slate-900
+        border-r border-slate-200 dark:border-slate-700
+        p-6
+        flex-col
+      "
+    >
       {/* Logo */}
       <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
+
       <motion.h1
         className="text-2xl font-bold mb-8 text-slate-800 dark:text-slate-100"
         initial={{ opacity: 0, x: -10 }}
@@ -73,56 +71,23 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex flex-col gap-2 text-slate-700 dark:text-slate-200">
-        <motion.a
-          href="/dashboard"
-          whileHover={{ x: 4 }}
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          📊 Dashboard
-        </motion.a>
+        <NavItem href="/dashboard" label="Dashboard" emoji="📊" />
+        <NavItem href="/dashboard/items" label="Items" emoji="📦" />
+        <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
+        <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
 
-        <motion.a
-          href="/dashboard/items"
-          whileHover={{ x: 4 }}
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          📦 Items
-        </motion.a>
+        {/* ⭐ NEW REPORTS PAGE */}
+        <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
 
-        <motion.a
-          href="/dashboard/vendors"
-          whileHover={{ x: 4 }}
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          🏪 Vendors
-        </motion.a>
-
-        <motion.a
-          href="/dashboard/restock"
-          whileHover={{ x: 4 }}
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          🧾 Restock
-        </motion.a>
-
-        <motion.a
-          href="/dashboard/settings"
-          whileHover={{ x: 4 }}
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          ⚙️ Settings
-        </motion.a>
+        <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
       </nav>
 
       {/* Bottom section */}
       <div className="mt-auto flex flex-col gap-3 pt-6">
-
         {/* PLAN STATUS */}
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 dark:text-slate-400">
-              Plan
-            </span>
+            <span className="text-slate-500 dark:text-slate-400">Plan</span>
 
             <span
               className={`px-2 py-0.5 rounded text-xs font-semibold
@@ -165,5 +130,26 @@ export default function Sidebar() {
         </motion.button>
       </div>
     </aside>
+  );
+}
+
+// 🔹 Reusable Nav Button
+function NavItem({
+  href,
+  emoji,
+  label,
+}: {
+  href: string;
+  emoji: string;
+  label: string;
+}) {
+  return (
+    <motion.a
+      href={href}
+      whileHover={{ x: 4 }}
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+    >
+      {emoji} {label}
+    </motion.a>
   );
 }
