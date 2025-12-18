@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const passwordHash = await hashPassword(password);
+    const encryptedPassword = password; // temporary only
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
     await db.collection("pendingSignups").doc(session.id).set({
       email,
-      passwordHash,
+      password: encryptedPassword,
       name: name || "",
       phone: phone || "",
       plan,
