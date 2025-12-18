@@ -321,6 +321,7 @@ export default function ReportsPage() {
             </button>
           </div>
         </div>
+        </div>
 
         {/* PRINT HEADER */}
         <div className="hidden print:block text-center mb-6">
@@ -336,55 +337,77 @@ export default function ReportsPage() {
         </div>
 
         {/* LIST */}
-        <div className="mt-6 space-y-8">
-          {Object.keys(grouped).length === 0 && (
-            <p className="text-slate-500">
-              No items match this report.
-            </p>
-          )}
+<div className="mt-6 space-y-8">
+  {Object.keys(grouped).length === 0 && (
+    <p className="text-slate-500">No items match this report.</p>
+  )}
 
-          {Object.entries(grouped).map(([vendor, list]: any) => (
-            <div
-              key={vendor}
-              className="report-section border rounded-xl p-4"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-lg">
-                  🏪 {vendor}
-                </h3>
-                <span className="text-sm text-slate-500">
-                  {list.length} item{list.length !== 1 && "s"}
-                </span>
-              </div>
+  {Object.entries(grouped).map(([vendor, list]: any) => (
+    <div
+      key={vendor}
+      className="
+        report-section 
+        border rounded-xl 
+        bg-slate-50 dark:bg-slate-800/60 
+        shadow-sm
+      "
+    >
+      {/* Vendor Header */}
+      <div className="
+        flex justify-between items-center 
+        px-4 py-3 
+        rounded-t-xl 
+        bg-slate-200 dark:bg-slate-700
+      ">
+        <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
+          🏪 {vendor}
+        </h3>
 
-              <table className="w-full text-sm border-t mt-2">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="text-left py-2 w-6">✓</th>
-                    <th className="text-left py-2">Item</th>
-                    <th className="text-left py-2 w-32">
-                      Cycle (days)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((item: Item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="py-2 align-top">
-                        <input type="checkbox" className="w-4 h-4" />
-                      </td>
-                      <td className="py-2 align-top">{item.name}</td>
-                      <td className="py-2 align-top">
-                        {item.daysLast ? item.daysLast : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
+        <span className="text-sm text-slate-600 dark:text-slate-300">
+          {list.length} item{list.length !== 1 && "s"}
+        </span>
       </div>
+
+      {/* Table */}
+      <div className="p-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-100 dark:bg-slate-700/70">
+              <th className="text-left py-2 px-1 w-6">✓</th>
+              <th className="text-left py-2 px-2">Item</th>
+              <th className="text-left py-2 px-2 w-32">Cycle (days)</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {list.map((item: Item, i: number) => (
+              <tr
+                key={item.id}
+                className={`
+                  border-t 
+                  border-slate-300 dark:border-slate-600
+                  ${i % 2 === 0 ? "bg-white dark:bg-slate-900/40" : ""}
+                `}
+              >
+                <td className="py-2 px-1 align-top">
+                  <input type="checkbox" className="w-4 h-4 accent-sky-600" />
+                </td>
+
+                <td className="py-2 px-2 text-slate-800 dark:text-slate-200">
+                  {item.name}
+                </td>
+
+                <td className="py-2 px-2 text-slate-700 dark:text-slate-300">
+                  {item.daysLast ? item.daysLast : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ))}
+</div>
 
       {/* ADVANCED ANALYTICS (blurred on Basic) */}
       <h2 className="mt-12 text-2xl font-bold no-print">
