@@ -2,18 +2,19 @@
 
 import Sidebar from "../../components/sidebar";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
-      
-      {/* FIXED SIDEBAR */}
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       <Sidebar />
 
-      {/* PAGE CONTENT — scrollable */}
-      <main className="ml-64 p-10">
+      {/* MAIN CONTENT */}
+      <div className="flex-1 ml-0 md:ml-64">
         {children}
-      </main>
-
+      </div>
     </div>
   );
 }

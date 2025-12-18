@@ -49,17 +49,18 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="
-        fixed
-        left-0 top-0
-        h-screen
-        w-64
-        bg-white dark:bg-slate-900
-        border-r border-slate-200 dark:border-slate-700
-        p-6
-        flex flex-col
-      "
-    >
+  className="
+    hidden md:flex
+    fixed
+    left-0 top-0
+    h-screen
+    w-64
+    bg-white dark:bg-slate-900
+    border-r border-slate-200 dark:border-slate-700
+    p-6
+    flex-col
+  "
+>
       {/* Logo */}
       <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
       <motion.h1
