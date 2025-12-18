@@ -88,3 +88,23 @@ button {
     dark:border-slate-600
     dark:placeholder-slate-500;
 }
+
+/* Make print look like paper */
+@media print {
+  body {
+    background: white !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .report-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-header {
+    margin-top: 0 !important;
+  }
+}

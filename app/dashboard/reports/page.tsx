@@ -179,49 +179,90 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        {/* LIST */}
-        <div className="mt-6 space-y-6 print:mt-4">
-          {Object.keys(grouped).length === 0 && (
-            <p className="text-slate-500">
-              No items match this report.
-            </p>
-          )}
+        {/* HEADER (visible on print only) */}
+<div className="hidden print:block text-center mb-6">
+  <img src="/logo.svg" alt="Restok Logo"className="mx-auto w-12 mb-2" />
+  <h1 className="text-2xl font-bold">Restok Store Pickup List</h1>
+  <p className="text-slate-600 text-sm">
+    Generated: {new Date().toLocaleString()}
+  </p>
+</div>
 
-          {Object.entries(grouped).map(([vendor, list]: any) => (
-            <div key={vendor}>
-              <h3 className="font-semibold text-lg">{vendor}</h3>
+{/* LIST */}
+<div className="mt-6 space-y-8 print:space-y-6">
+  {Object.keys(grouped).length === 0 && (
+    <p className="text-slate-500">
+      No items match this report.
+    </p>
+  )}
 
-              <div className="mt-2 border rounded-lg divide-y">
-                {list.map((item: Item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 flex gap-2 items-center"
-                  >
-                    <input type="checkbox" />
-                    <span>{item.name}</span>
-                  </div>
-                ))}
-              </div>
+  {Object.entries(grouped).map(([vendor, list]: any, idx) => (
+    <div
+      key={vendor}
+      className="report-section p-5 rounded-xl border bg-white dark:bg-slate-900 shadow print:shadow-none"
+    >
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold text-xl text-slate-800 dark:text-slate-100">
+          🏪 {vendor}
+        </h3>
+
+        <span className="text-sm text-slate-500">
+          {list.length} item{list.length !== 1 && "s"}
+        </span>
+      </div>
+
+      <div className="border rounded-lg divide-y">
+        {list.map((item: Item) => (
+          <div
+            key={item.id}
+            className="p-3 flex justify-between items-center"
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-sky-600"
+              />
+              <span className="font-medium">{item.name}</span>
             </div>
-          ))}
-        </div>
 
-        {/* PRINT STYLE */}
-        <style jsx global>{`
-          @media print {
-            aside, nav, header, button:not(.allow-print) {
-              display: none !important;
-            }
+            {/* Optional display of urgency */}
+            <span className="text-sm text-slate-500">
+              {item.daysLast
+                ? `${item.daysLast} day cycle`
+                : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  ))}
+</div>
 
-            body {
-              background: white !important;
-            }
+{/* PRINT STYLE */}
+<style jsx global>{`
+  @media print {
+    aside,
+    nav,
+    header,
+    .no-print,
+    button:not(.allow-print) {
+      display: none !important;
+    }
 
-            main {
-              padding: 0 !important;
-            }
-          }
-        `}</style>
+    body {
+      background: white !important;
+    }
+
+    main {
+      padding: 0 !important;
+    }
+
+    .report-section {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+  }
+`}</style>
       </div>
     </motion.main>
   );
