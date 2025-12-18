@@ -357,26 +357,14 @@ export default function ReportsPage() {
             <tr className="bg-slate-100 dark:bg-slate-700/70">
               <th className="py-2 px-2 w-6">✓</th>
               <th className="py-2 px-2">Item</th>
-              <th className="py-2 px-2 w-32">Cycle (days)</th>
             </tr>
           </thead>
 
           <tbody>
             {list.map((item) => (
               <tr key={item.id} className="border-t">
-                <td className="py-2 px-2">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 accent-sky-600"
-                    checked={selectedIds.has(item.id)}
-                    onChange={() => toggleSingle(item.id)}
-                  />
-                </td>
-
+                 <td className="py-2">☐</td>
                 <td className="py-2 px-2">{item.name}</td>
-                <td className="py-2 px-2">
-                  {item.daysLast || "—"}
-                </td>
               </tr>
             ))}
           </tbody>
