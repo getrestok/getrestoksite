@@ -25,30 +25,24 @@ type Vendor = {
 type Plan = "basic" | "pro" | "premium" | "enterprise";
 
 // --------------------------------------------------
-// 🔒 Blur Lock Component
+// 🔒 Blur Lock Component (for advanced section only)
 // --------------------------------------------------
-function LockedBlur({ children, onClick }: any) {
+function LockedBlur({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <div onClick={onClick} className="relative overflow-hidden group cursor-pointer pro-locked">
+    <div
+      onClick={onClick}
+      className="relative overflow-hidden group cursor-pointer pro-locked advanced-section no-print"
+    >
       <div className="blur-sm pointer-events-none select-none group-hover:blur-md transition">
         {children}
       </div>
 
-      <div className="
-        absolute inset-0
-        bg-white/70 dark:bg-slate-900/70
-        flex flex-col items-center justify-center text-center
-        backdrop-blur-sm
-      ">
+      <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 flex flex-col items-center justify-center text-center backdrop-blur-sm">
         <span className="text-xl font-bold">🔒 Pro Feature</span>
-
         <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
           Upgrade to unlock advanced reporting & analytics
         </p>
-
-        <button
-          className="mt-3 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg"
-        >
+        <button className="mt-3 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
           See Plans
         </button>
       </div>
@@ -56,9 +50,6 @@ function LockedBlur({ children, onClick }: any) {
   );
 }
 
-// --------------------------------------------------
-// MAIN
-// --------------------------------------------------
 export default function ReportsPage() {
   const router = useRouter();
 
@@ -66,7 +57,6 @@ export default function ReportsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [vendors, setVendors] = useState<Record<string, Vendor>>({});
   const [filter, setFilter] = useState<"low" | "due" | "all">("low");
-
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [plan, setPlan] = useState<Plan>("basic");
   const [showUpsell, setShowUpsell] = useState(false);
@@ -143,7 +133,10 @@ export default function ReportsPage() {
   // FILTER LOGIC
   // -----------------------
   useEffect(() => {
-    if (!items.length) return;
+    if (!items.length) {
+      setFilteredItems([]);
+      return;
+    }
 
     const now = Date.now();
 
@@ -156,10 +149,16 @@ export default function ReportsPage() {
 
     let result = items;
 
-    if (filter === "low")
-      result = items.filter((i) => daysLeft(i) <= 3 && daysLeft(i) > 0);
-    if (filter === "due")
+    if (filter === "low") {
+      result = items.filter((i) => {
+        const d = daysLeft(i);
+        return d <= 3 && d > 0;
+      });
+    }
+
+    if (filter === "due") {
       result = items.filter((i) => daysLeft(i) <= 0);
+    }
 
     setFilteredItems(result);
   }, [items, filter]);
@@ -177,7 +176,7 @@ export default function ReportsPage() {
   }, {});
 
   // -----------------------
-  // ADVANCED REPORTS LOGIC
+  // ADVANCED REPORTS LOGIC (for Pro+)
   // -----------------------
   type ReportRow = {
     id: string;
@@ -192,27 +191,32 @@ export default function ReportsPage() {
   const restockFrequencyReport: ReportRow[] = [];
   const problemItems: ReportRow[] = [];
 
-  let vendorStats: Record<string, {
-    vendor: string;
-    items: number;
-    avgReliability: number;
-  }> = {};
+  let vendorStats: Record<
+    string,
+    {
+      vendor: string;
+      items: number;
+      avgReliability: number;
+    }
+  > = {};
 
-  items.forEach(item => {
+  items.forEach((item) => {
     const history: any[] = item.restockHistory || [];
     const expected = item.daysLast || 0;
 
     if (history.length < 2) return;
 
-    const sorted = history.map(h => h.toDate().getTime()).sort((a,b) => a - b);
+    const sorted = history
+      .map((h) => h.toDate().getTime())
+      .sort((a, b) => a - b);
 
-    let intervals: number[] = [];
+    const intervals: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
-      const diff = Math.floor((sorted[i] - sorted[i-1]) / 86400000);
+      const diff = Math.floor((sorted[i] - sorted[i - 1]) / 86400000);
       intervals.push(diff);
     }
 
-    const avg = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
 
     const reliability =
       expected > 0
@@ -246,7 +250,7 @@ export default function ReportsPage() {
     vendorStats[vendor].avgReliability += reliability || 0;
   });
 
-  Object.keys(vendorStats).forEach(v => {
+  Object.keys(vendorStats).forEach((v) => {
     vendorStats[v].avgReliability =
       Math.round(vendorStats[v].avgReliability / vendorStats[v].items);
   });
@@ -255,94 +259,211 @@ export default function ReportsPage() {
   // UI
   // -----------------------
   return (
-    <motion.main className="flex-1 p-10" initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
+    <motion.main
+      className="flex-1 p-10"
+      initial={{ opacity: 0.4 }}
+      animate={{ opacity: 1 }}
+    >
       <h1 className="text-3xl font-bold">Reports</h1>
-      <p className="text-slate-600 mt-2">Generate lists & insights to make smarter purchasing decisions.</p>
+      <p className="text-slate-600 mt-2">
+        Generate lists for store pickup, review, or documentation.
+      </p>
 
-      {/* ---------------- BASIC PICKUP REPORT (Always Available) ---------------- */}
-      <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl">
+      {/* BASIC PICKUP REPORT (prints nicely) */}
+      <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl pickup-report">
+        {/* Screen-only header */}
+        <div className="no-print">
+          <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Print a clean list grouped by vendor to take to the store.
+          </p>
 
-        <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
+          {/* FILTERS */}
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => setFilter("low")}
+              className={`px-3 py-1.5 rounded ${
+                filter === "low"
+                  ? "bg-amber-500 text-white"
+                  : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              Running Low (≤3 days)
+            </button>
 
-        <div className="flex gap-3 mt-4">
-          <button onClick={() => setFilter("low")}
-            className={`px-3 py-1.5 rounded ${filter === "low" ? "bg-amber-500 text-white" : "bg-slate-200 dark:bg-slate-700"}`}>
-            Running Low
-          </button>
+            <button
+              onClick={() => setFilter("due")}
+              className={`px-3 py-1.5 rounded ${
+                filter === "due"
+                  ? "bg-red-500 text-white"
+                  : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              Due / Out
+            </button>
 
-          <button onClick={() => setFilter("due")}
-            className={`px-3 py-1.5 rounded ${filter === "due" ? "bg-red-500 text-white" : "bg-slate-200 dark:bg-slate-700"}`}>
-            Due / Out
-          </button>
+            <button
+              onClick={() => setFilter("all")}
+              className={`px-3 py-1.5 rounded ${
+                filter === "all"
+                  ? "bg-sky-600 text-white"
+                  : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              All Items
+            </button>
 
-          <button onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 rounded ${filter === "all" ? "bg-sky-600 text-white" : "bg-slate-200 dark:bg-slate-700"}`}>
-            All Items
-          </button>
-
-          <button onClick={() => window.print()} className="ml-auto bg-slate-900 text-white px-4 py-2 rounded">
-            🖨️ Print
-          </button>
+            <button
+              onClick={() => window.print()}
+              className="ml-auto bg-slate-900 text-white px-4 py-2 rounded hover:opacity-90"
+            >
+              🖨️ Print List
+            </button>
+          </div>
         </div>
 
-        <div className="mt-6 space-y-6">
+        {/* PRINT HEADER */}
+        <div className="hidden print:block text-center mb-6">
+          <img
+            src="/logo.svg"
+            alt="Restok Logo"
+            className="mx-auto w-12 mb-2"
+          />
+          <h1 className="text-2xl font-bold">Restok Store Pickup List</h1>
+          <p className="text-slate-600 text-sm">
+            Generated: {new Date().toLocaleString()}
+          </p>
+        </div>
+
+        {/* LIST */}
+        <div className="mt-6 space-y-8">
+          {Object.keys(grouped).length === 0 && (
+            <p className="text-slate-500">
+              No items match this report.
+            </p>
+          )}
+
           {Object.entries(grouped).map(([vendor, list]: any) => (
-            <div key={vendor} className="border rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-2">🏪 {vendor}</h3>
+            <div
+              key={vendor}
+              className="report-section border rounded-xl p-4"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-lg">
+                  🏪 {vendor}
+                </h3>
+                <span className="text-sm text-slate-500">
+                  {list.length} item{list.length !== 1 && "s"}
+                </span>
+              </div>
 
-              {list.map((item: Item) => (
-                <div key={item.id} className="flex justify-between py-2 border-b last:border-none">
-                  <div className="flex items-center gap-3">
-                    <input type="checkbox" className="w-4 h-4 accent-sky-600" />
-                    {item.name}
-                  </div>
-
-                  <span className="text-sm text-slate-500">
-                    {item.daysLast} day cycle
-                  </span>
-                </div>
-              ))}
+              <table className="w-full text-sm border-t mt-2">
+                <thead className="bg-slate-100">
+                  <tr>
+                    <th className="text-left py-2 w-6">✓</th>
+                    <th className="text-left py-2">Item</th>
+                    <th className="text-left py-2 w-32">
+                      Cycle (days)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((item: Item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="py-2 align-top">
+                        <input type="checkbox" className="w-4 h-4" />
+                      </td>
+                      <td className="py-2 align-top">{item.name}</td>
+                      <td className="py-2 align-top">
+                        {item.daysLast ? item.daysLast : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ))}
         </div>
       </div>
 
-
-      {/* ---------------- ADVANCED PRO REPORTS ---------------- */}
-      <h2 className="mt-12 text-2xl font-bold">📈 Advanced Analytics</h2>
+      {/* ADVANCED ANALYTICS (blurred on Basic) */}
+      <h2 className="mt-12 text-2xl font-bold no-print">
+        📈 Advanced Analytics
+      </h2>
 
       {plan === "basic" ? (
         <LockedBlur onClick={() => setShowUpsell(true)}>
           <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl">
-            <div className="h-40 rounded-lg border animate-pulse mb-4"></div>
-            <div className="h-24 rounded-lg border animate-pulse"></div>
+            <div className="h-40 rounded-lg border animate-pulse mb-4" />
+            <div className="h-24 rounded-lg border animate-pulse" />
           </div>
         </LockedBlur>
       ) : (
-        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl">
-          <p>Real analytics would render here 👍</p>
+        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl advanced-section no-print">
+          {/* You can later replace this placeholder with real charts/tables */}
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Detailed restock frequency, problem items, and vendor performance
+            will appear here.
+          </p>
         </div>
       )}
 
-      {/* PRINT BLOCKER FOR PRO */}
+      {/* PRINT-ONLY & GLOBAL STYLES */}
       <style jsx global>{`
         @media print {
-          .pro-locked {
+          body {
+            background: white !important;
+          }
+
+          /* Hide app chrome, buttons, and upsell stuff */
+          aside,
+          nav,
+          header,
+          .no-print,
+          .advanced-section,
+          .pro-locked,
+          button {
             display: none !important;
+          }
+
+          main {
+            padding: 0 !important;
+          }
+
+          /* Make pickup report full width and clean */
+          .pickup-report {
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+          }
+
+          .report-section {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          table {
+            border-collapse: collapse;
+          }
+
+          th,
+          td {
+            padding: 6px 4px;
           }
         }
       `}</style>
 
-      {/* ---------------- UPSALE MODAL ---------------- */}
+      {/* Upsell Modal */}
       {showUpsell && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 no-print">
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-xl max-w-lg w-full">
             <h2 className="text-2xl font-bold">Upgrade to Pro</h2>
             <p className="mt-2 text-slate-600 dark:text-slate-300">
               Unlock smarter inventory intelligence:
             </p>
 
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 space-y-2 text-slate-700 dark:text-slate-200">
               <li>✔️ Restock frequency analytics</li>
               <li>✔️ Problem item detection</li>
               <li>✔️ Vendor performance scoring</li>
@@ -351,7 +472,10 @@ export default function ReportsPage() {
             </ul>
 
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setShowUpsell(false)} className="w-1/2 border rounded-lg py-2">
+              <button
+                onClick={() => setShowUpsell(false)}
+                className="w-1/2 border rounded-lg py-2"
+              >
                 Maybe later
               </button>
 
@@ -368,7 +492,6 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
-
     </motion.main>
   );
 }
