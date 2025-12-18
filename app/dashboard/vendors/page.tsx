@@ -16,19 +16,19 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 
 type VendorDoc = {
   id: string;
   name: string;
   email?: string | null;
   website?: string | null;
+  hasPhysicalStore?: boolean;
   createdAt?: any;
 };
 
 export default function VendorsPage() {
   const router = useRouter();
-
   const [user, setUser] = useState<any>(null);
   const [vendors, setVendors] = useState<VendorDoc[]>([]);
 
@@ -39,9 +39,32 @@ export default function VendorsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
+  const [hasStore, setHasStore] = useState(false);
 
   // DELETE CONFIRM
   const [deleteVendor, setDeleteVendor] = useState<VendorDoc | null>(null);
+
+  // ---------- Animation Variants ----------
+  const modalBackdrop: Variants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+  };
+
+  const modalPanel: Variants = {
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 220, damping: 18 },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      y: 10,
+      transition: { duration: 0.15 },
+    },
+  };
 
   // -------------------------
   // AUTH + LOAD VENDORS
@@ -79,37 +102,37 @@ export default function VendorsPage() {
   // SAVE VENDOR
   // -------------------------
   async function handleSaveVendor(e: React.FormEvent) {
-  e.preventDefault();
+    e.preventDefault();
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
+    const payload = {
+      name: name.trim(),
+      email: email.trim() || null,
+      website: website.trim() || null,
+      hasPhysicalStore: hasStore,
+      updatedAt: serverTimestamp(),
+    };
 
-  const payload = {
-    name: name.trim(),
-    email: email.trim() || null,
-    website: website.trim() || null,
-    updatedAt: serverTimestamp(),
-  };
+    try {
+      if (editingVendor) {
+        await updateDoc(
+          doc(db, "users", uid, "vendors", editingVendor.id),
+          payload
+        );
+      } else {
+        await addDoc(collection(db, "users", uid, "vendors"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
+      }
 
-  try {
-    if (editingVendor) {
-      await updateDoc(
-        doc(db, "users", uid, "vendors", editingVendor.id),
-        payload
-      );
-    } else {
-      await addDoc(collection(db, "users", uid, "vendors"), {
-        ...payload,
-        createdAt: serverTimestamp(),
-      });
+      resetModal();
+    } catch (err) {
+      console.error("Failed to save vendor:", err);
+      alert("Failed to save vendor. Check console.");
     }
-
-    resetModal();
-  } catch (err) {
-    console.error("Failed to save vendor:", err);
-    alert("Failed to save vendor. Check console.");
   }
-}
 
   function resetModal() {
     setShowModal(false);
@@ -117,18 +140,16 @@ export default function VendorsPage() {
     setName("");
     setEmail("");
     setWebsite("");
+    setHasStore(false);
   }
 
   // -------------------------
   // DELETE VENDOR (SAFE)
   // -------------------------
   async function handleDeleteVendor(vendor: VendorDoc) {
-    if (!user) return;
-
     const uid = auth.currentUser?.uid;
-if (!uid) return;
+    if (!uid) return;
 
-    // Prevent deleting vendors still used by items
     const itemsSnap = await getDocs(
       query(
         collection(db, "users", uid, "items"),
@@ -141,7 +162,7 @@ if (!uid) return;
       return;
     }
 
-    await deleteDoc(doc(db, "users", user.uid, "vendors", vendor.id));
+    await deleteDoc(doc(db, "users", uid, "vendors", vendor.id));
     setDeleteVendor(null);
   }
 
@@ -179,9 +200,12 @@ if (!uid) return;
           </div>
         )}
 
-        {vendors.map((v) => (
-          <div
+        {vendors.map((v, i) => (
+          <motion.div
             key={v.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04, duration: 0.25 }}
             className="p-4 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 flex justify-between items-center"
           >
             <div>
@@ -193,6 +217,18 @@ if (!uid) return;
                 {v.email && <div>📧 {v.email}</div>}
                 {v.website && <div>🌐 {v.website}</div>}
                 {!v.email && !v.website && <div>No contact info</div>}
+
+                <div className="mt-1">
+                  {v.hasPhysicalStore ? (
+                    <span className="text-green-600 dark:text-green-400">
+                      🏬 Has physical store
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 dark:text-slate-400">
+                      🏢 Online only
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -203,6 +239,7 @@ if (!uid) return;
                   setName(v.name);
                   setEmail(v.email || "");
                   setWebsite(v.website || "");
+                  setHasStore(v.hasPhysicalStore || false);
                   setShowModal(true);
                 }}
                 className="px-3 py-1.5 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-sm"
@@ -217,16 +254,26 @@ if (!uid) return;
                 Delete
               </button>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
       {/* ADD / EDIT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <form
+        <motion.div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+        >
+          <motion.form
             onSubmit={handleSaveVendor}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4 shadow-2xl"
           >
             <h2 className="text-xl font-semibold">
               {editingVendor ? "Edit Vendor" : "Add Vendor"}
@@ -254,30 +301,51 @@ if (!uid) return;
               onChange={(e) => setWebsite(e.target.value)}
             />
 
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hasStore}
+                onChange={(e) => setHasStore(e.target.checked)}
+              />
+              This vendor has a physical store location
+            </label>
+
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={resetModal}
-                className="w-1/2 border p-3 rounded"
+                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
               >
                 Cancel
               </button>
 
               <button
                 type="submit"
-                className="w-1/2 bg-sky-600 text-white p-3 rounded"
+                className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded transition"
               >
                 Save
               </button>
             </div>
-          </form>
-        </div>
+          </motion.form>
+        </motion.div>
       )}
 
       {/* DELETE CONFIRM */}
       {deleteVendor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4">
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+        >
+          <motion.div
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
+          >
             <h2 className="text-lg font-semibold">Delete vendor?</h2>
 
             <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -288,20 +356,20 @@ if (!uid) return;
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteVendor(null)}
-                className="w-1/2 border p-3 rounded"
+                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
               >
                 Cancel
               </button>
 
               <button
                 onClick={() => handleDeleteVendor(deleteVendor)}
-                className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded"
+                className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded transition"
               >
                 Delete
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </motion.main>
   );
