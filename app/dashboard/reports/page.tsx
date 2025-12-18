@@ -20,6 +20,7 @@ type Item = {
 type Vendor = {
   id: string;
   name: string;
+  hasPhysicalStore?: boolean;
 };
 
 type Plan = "basic" | "pro" | "premium" | "enterprise";
@@ -179,18 +180,26 @@ export default function ReportsPage() {
   // -----------------------
   // GROUP BY VENDOR
   // -----------------------
-  const grouped: Record<string, Item[]> = filteredItems.reduce(
-    (acc: Record<string, Item[]>, item) => {
-      const vendorName =
-        (item.vendorId && vendors[item.vendorId]?.name) ||
-        "Unassigned Vendor";
+  // Only include items whose vendor has a physical store
+const storeItems = filteredItems.filter(item => {
+  if (!item.vendorId) return false; // ignore unassigned
+  const v = vendors[item.vendorId];
+  return v?.hasPhysicalStore === true;
+});
 
-      if (!acc[vendorName]) acc[vendorName] = [];
-      acc[vendorName].push(item);
-      return acc;
-    },
-    {}
-  );
+// Group by vendor (but now it's only store vendors)
+const grouped: Record<string, Item[]> = storeItems.reduce(
+  (acc: Record<string, Item[]>, item) => {
+    const vendorName =
+      (item.vendorId && vendors[item.vendorId]?.name) ||
+      "Unknown Vendor";
+
+    if (!acc[vendorName]) acc[vendorName] = [];
+    acc[vendorName].push(item);
+    return acc;
+  },
+  {}
+);
 
   // -----------------------
   // SELECT HELPERS
