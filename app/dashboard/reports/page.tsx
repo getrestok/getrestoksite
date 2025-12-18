@@ -431,94 +431,7 @@ export default function ReportsPage() {
   })}
 </div>
 
-        {/* LIST */}
-        <div className="mt-6 space-y-8">
-          {Object.keys(grouped).length === 0 && (
-            <p className="text-slate-500">No items match this report.</p>
-          )}
-
-          {Object.entries(grouped).map(([vendorName, list]) => {
-            const vendorItems = list as Item[];
-            const vendorIds = vendorItems.map((i) => i.id);
-            const vendorAllSelected =
-              vendorIds.length > 0 &&
-              vendorIds.every((id) => selectedIds.has(id));
-
-            return (
-              <div
-                key={vendorName}
-                className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
-              >
-                {/* Vendor Header */}
-                <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
-                      🏪 {vendorName}
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-200">
-                    <span>
-                      {vendorItems.length} item
-                      {vendorItems.length !== 1 && "s"}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toggleVendorGroup(vendorName, vendorItems)
-                      }
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-500 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700"
-                    >
-                      {vendorAllSelected ? "Unselect vendor" : "Select vendor"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Table */}
-                <div className="p-4">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-100 dark:bg-slate-700/70">
-                        <th className="text-left py-2 px-1 w-6">✓</th>
-                        <th className="text-left py-2 px-2">Item</th>
-                        <th className="text-left py-2 px-2 w-32">
-                          Cycle (days)
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {vendorItems.map((item, i) => (
-                        <tr
-                          key={item.id}
-                          className={`border-t border-slate-300 dark:border-slate-600 ${
-                            i % 2 === 0
-                              ? "bg-white dark:bg-slate-900/40"
-                              : ""
-                          }`}
-                        >
-                          <td className="py-2 px-1">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 accent-sky-600"
-                              checked={selectedIds.has(item.id)}
-                              onChange={() => toggleSingle(item.id)}
-                            />
-                          </td>
-                          <td className="py-2 px-2">{item.name}</td>
-                          <td className="py-2 px-2">
-                            {item.daysLast || "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        
       </div>
 
       {/* Advanced Analytics */}
@@ -544,46 +457,45 @@ export default function ReportsPage() {
 
       {/* PRINT-ONLY & GLOBAL STYLES */}
       <style jsx global>{`
-        @media print {
-          aside,
-          nav,
-          header,
-          .no-print,
-          .advanced-section,
-          .pro-locked,
-          button {
-            display: none !important;
-          }
+  @media print {
+    aside,
+    nav,
+    header,
+    .no-print,
+    button {
+      display: none !important;
+    }
 
-          body {
-            background: white !important;
-          }
+    body {
+      background: white !important;
+    }
 
-          main {
-            padding: 0 !important;
-          }
+    main {
+      padding: 0 !important;
+    }
 
-          .pickup-report {
-            border: none !important;
-            box-shadow: none !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-          }
+    .pickup-report {
+      border: none !important;
+      box-shadow: none !important;
+      max-width: 900px !important;
+      margin: 0 auto !important;
+    }
 
-          .report-section {
-            page-break-inside: avoid;
-          }
+    .report-section {
+      page-break-inside: avoid;
+    }
 
-          table {
-            border-collapse: collapse;
-          }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
 
-          th,
-          td {
-            padding: 6px 4px;
-          }
-        }
-      `}</style>
+    th,
+    td {
+      padding: 8px 4px;
+    }
+  }
+`}</style>
 
       {/* Upsell Modal */}
       {showUpsell && (
