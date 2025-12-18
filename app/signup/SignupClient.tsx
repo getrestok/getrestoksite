@@ -204,7 +204,7 @@ const [selectedPlan, setSelectedPlan] =
             disabled={loading}
             className="w-full bg-sky-600 text-white py-3 rounded-lg font-medium hover:bg-sky-700 disabled:bg-sky-400"
           >
-            {loading ? "Creating account..." : "Create Account"}
+            {loading ? "Loading..." : "Continue to Payment"}
           </button>
         </form>
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +12,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const params = useSearchParams();
+const showSetupMessage = params.get("setup") === "1";
 
   async function handleLogin(e: any) {
     e.preventDefault();
@@ -45,6 +48,17 @@ export default function LoginPage() {
 >
   ← Back to Home
 </a>
+
+{showSetupMessage && (
+  <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
+    <strong>Account created successfully 🎉</strong>
+    <p className="mt-1">
+      We’ve sent you an email to set your password.
+      <br />
+      Please check your inbox and spam folder.
+    </p>
+  </div>
+)}
 
 
         <form onSubmit={handleLogin} className="mt-6 space-y-4">

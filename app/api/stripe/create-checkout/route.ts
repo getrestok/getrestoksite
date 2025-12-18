@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/firebaseAdmin";
-import { hashPassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   try {
@@ -21,17 +20,16 @@ export async function POST(req: Request) {
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    const { email, password, name, phone, plan } = await req.json();
+    const { email, name, phone, plan } = await req.json();
 
-    if (!email || !password || !plan) {
+    if (!email || !plan) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const encryptedPassword = password; // temporary only
-
+    // ✅ Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: email,
@@ -50,13 +48,13 @@ export async function POST(req: Request) {
         },
       ],
 
-      success_url: "https://getrestok.com/login",
+      success_url: "https://getrestok.com/login?setup=1",
       cancel_url: "https://getrestok.com/signup",
     });
 
+    // ✅ Store TEMP signup data (NO PASSWORD)
     await db.collection("pendingSignups").doc(session.id).set({
       email,
-      password: encryptedPassword,
       name: name || "",
       phone: phone || "",
       plan,
