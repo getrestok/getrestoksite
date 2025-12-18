@@ -67,7 +67,12 @@ export default function ReportsPage() {
   const [plan, setPlan] = useState<Plan>("basic");
   const [showUpsell, setShowUpsell] = useState(false);
 
+  // ✅ selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // -----------------------
   // AUTH
+  // -----------------------
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
@@ -75,7 +80,9 @@ export default function ReportsPage() {
     });
   }, [router]);
 
+  // -----------------------
   // LOAD PLAN
+  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -94,7 +101,9 @@ export default function ReportsPage() {
     });
   }, [user]);
 
+  // -----------------------
   // LOAD ITEMS
+  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -111,7 +120,9 @@ export default function ReportsPage() {
     );
   }, [user]);
 
+  // -----------------------
   // LOAD VENDORS
+  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -127,10 +138,13 @@ export default function ReportsPage() {
     );
   }, [user]);
 
+  // -----------------------
   // FILTER LOGIC
+  // -----------------------
   useEffect(() => {
     if (!items.length) {
       setFilteredItems([]);
+      setSelectedIds(new Set()); // clear selection when list empties
       return;
     }
 
@@ -145,26 +159,81 @@ export default function ReportsPage() {
 
     let result = items;
 
-    if (filter === "low")
+    if (filter === "low") {
       result = items.filter((i) => {
         const d = daysLeft(i);
         return d <= 3 && d > 0;
       });
+    }
 
-    if (filter === "due") result = items.filter((i) => daysLeft(i) <= 0);
+    if (filter === "due") {
+      result = items.filter((i) => daysLeft(i) <= 0);
+    }
 
     setFilteredItems(result);
+
+    // Optional: you could also auto-trim selection to visible items.
+    // For now we leave previously-checked boxes as-is.
   }, [items, filter]);
 
+  // -----------------------
   // GROUP BY VENDOR
-  const grouped = filteredItems.reduce((acc: any, item) => {
-    const vendor =
-      (item.vendorId && vendors[item.vendorId]?.name) || "Unassigned Vendor";
+  // -----------------------
+  const grouped: Record<string, Item[]> = filteredItems.reduce(
+    (acc: Record<string, Item[]>, item) => {
+      const vendorName =
+        (item.vendorId && vendors[item.vendorId]?.name) ||
+        "Unassigned Vendor";
 
-    if (!acc[vendor]) acc[vendor] = [];
-    acc[vendor].push(item);
-    return acc;
-  }, {});
+      if (!acc[vendorName]) acc[vendorName] = [];
+      acc[vendorName].push(item);
+      return acc;
+    },
+    {}
+  );
+
+  // -----------------------
+  // SELECT HELPERS
+  // -----------------------
+
+  const allVisibleIds = filteredItems.map((i) => i.id);
+  const allVisibleSelected =
+    allVisibleIds.length > 0 &&
+    allVisibleIds.every((id) => selectedIds.has(id));
+
+  function toggleAllVisible() {
+    if (allVisibleSelected) {
+      // unselect all visible
+      const next = new Set(selectedIds);
+      allVisibleIds.forEach((id) => next.delete(id));
+      setSelectedIds(next);
+    } else {
+      // select all visible
+      const next = new Set(selectedIds);
+      allVisibleIds.forEach((id) => next.add(id));
+      setSelectedIds(next);
+    }
+  }
+
+  function toggleVendorGroup(vendor: string, list: Item[]) {
+    const ids = list.map((i) => i.id);
+    const allVendorSelected = ids.every((id) => selectedIds.has(id));
+
+    const next = new Set(selectedIds);
+    if (allVendorSelected) {
+      ids.forEach((id) => next.delete(id));
+    } else {
+      ids.forEach((id) => next.add(id));
+    }
+    setSelectedIds(next);
+  }
+
+  function toggleSingle(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  }
 
   return (
     <motion.main
@@ -181,12 +250,35 @@ export default function ReportsPage() {
       <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl pickup-report">
         {/* Screen Header */}
         <div className="no-print">
-          <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Print a clean list grouped by vendor to take to the store.
-          </p>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Print a clean list grouped by vendor to take to the store.
+              </p>
+            </div>
 
-          <div className="flex gap-3 mt-4">
+            {/* Select all toggle summary */}
+            <div className="text-right text-xs text-slate-500">
+              <div>
+                Selected:{" "}
+                <span className="font-semibold">
+                  {selectedIds.size} item
+                  {selectedIds.size !== 1 && "s"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAllVisible}
+                className="mt-1 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                {allVisibleSelected ? "Unselect all" : "Select all visible"}
+              </button>
+            </div>
+          </div>
+
+          {/* FILTERS */}
+          <div className="flex flex-wrap gap-3 mt-4">
             <button
               onClick={() => setFilter("low")}
               className={`px-3 py-1.5 rounded ${
@@ -244,59 +336,87 @@ export default function ReportsPage() {
             <p className="text-slate-500">No items match this report.</p>
           )}
 
-          {Object.entries(grouped).map(([vendor, list]: any) => (
-            <div
-              key={vendor}
-              className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
-            >
-              <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
-                <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
-                  🏪 {vendor}
-                </h3>
-                <span className="text-sm text-slate-600 dark:text-slate-300">
-                  {list.length} item{list.length !== 1 && "s"}
-                </span>
-              </div>
+          {Object.entries(grouped).map(([vendorName, list]) => {
+            const vendorItems = list as Item[];
+            const vendorIds = vendorItems.map((i) => i.id);
+            const vendorAllSelected =
+              vendorIds.length > 0 &&
+              vendorIds.every((id) => selectedIds.has(id));
 
-              <div className="p-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-700/70">
-                      <th className="text-left py-2 px-1 w-6">✓</th>
-                      <th className="text-left py-2 px-2">Item</th>
-                      <th className="text-left py-2 px-2 w-32">
-                        Cycle (days)
-                      </th>
-                    </tr>
-                  </thead>
+            return (
+              <div
+                key={vendorName}
+                className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
+              >
+                {/* Vendor Header */}
+                <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
+                      🏪 {vendorName}
+                    </h3>
+                  </div>
 
-                  <tbody>
-                    {list.map((item: Item, i: number) => (
-                      <tr
-                        key={item.id}
-                        className={`border-t border-slate-300 dark:border-slate-600 ${
-                          i % 2 === 0
-                            ? "bg-white dark:bg-slate-900/40"
-                            : ""
-                        }`}
-                      >
-                        <td className="py-2 px-1">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-sky-600"
-                          />
-                        </td>
-                        <td className="py-2 px-2">{item.name}</td>
-                        <td className="py-2 px-2">
-                          {item.daysLast || "—"}
-                        </td>
+                  <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-200">
+                    <span>
+                      {vendorItems.length} item
+                      {vendorItems.length !== 1 && "s"}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleVendorGroup(vendorName, vendorItems)
+                      }
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-500 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      {vendorAllSelected ? "Unselect vendor" : "Select vendor"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-700/70">
+                        <th className="text-left py-2 px-1 w-6">✓</th>
+                        <th className="text-left py-2 px-2">Item</th>
+                        <th className="text-left py-2 px-2 w-32">
+                          Cycle (days)
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+
+                    <tbody>
+                      {vendorItems.map((item, i) => (
+                        <tr
+                          key={item.id}
+                          className={`border-t border-slate-300 dark:border-slate-600 ${
+                            i % 2 === 0
+                              ? "bg-white dark:bg-slate-900/40"
+                              : ""
+                          }`}
+                        >
+                          <td className="py-2 px-1">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 accent-sky-600"
+                              checked={selectedIds.has(item.id)}
+                              onChange={() => toggleSingle(item.id)}
+                            />
+                          </td>
+                          <td className="py-2 px-2">{item.name}</td>
+                          <td className="py-2 px-2">
+                            {item.daysLast || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -315,12 +435,13 @@ export default function ReportsPage() {
       ) : (
         <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl no-print">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            Detailed analytics will go here.
+            Detailed restock frequency, problem items, and vendor performance
+            will appear here.
           </p>
         </div>
       )}
 
-      {/* PRINT STYLES */}
+      {/* PRINT-ONLY & GLOBAL STYLES */}
       <style jsx global>{`
         @media print {
           aside,
