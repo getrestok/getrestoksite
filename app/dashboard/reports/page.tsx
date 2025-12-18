@@ -330,6 +330,107 @@ export default function ReportsPage() {
           </p>
         </div>
 
+        {/* LIST - SCREEN VIEW */}
+<div className="mt-6 space-y-8 no-print">
+  {Object.keys(grouped).length === 0 && (
+    <p className="text-slate-500">No items match this report.</p>
+  )}
+
+  {Object.entries(grouped).map(([vendorName, list]) => (
+    <div
+      key={vendorName}
+      className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
+    >
+      <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
+        <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
+          🏪 {vendorName}
+        </h3>
+
+        <span className="text-sm text-slate-700 dark:text-slate-200">
+          {list.length} item{list.length !== 1 && "s"}
+        </span>
+      </div>
+
+      <div className="p-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-100 dark:bg-slate-700/70">
+              <th className="py-2 px-2 w-6">✓</th>
+              <th className="py-2 px-2">Item</th>
+              <th className="py-2 px-2 w-32">Cycle (days)</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {list.map((item) => (
+              <tr key={item.id} className="border-t">
+                <td className="py-2 px-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-sky-600"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSingle(item.id)}
+                  />
+                </td>
+
+                <td className="py-2 px-2">{item.name}</td>
+                <td className="py-2 px-2">
+                  {item.daysLast || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ))}
+</div>
+
+{/* PRINT VIEW – ONLY SELECTED ITEMS */}
+<div className="hidden print:block mt-8">
+  {Object.entries(grouped).map(([vendorName, list]: any) => {
+    const selected = list.filter((i: any) =>
+      selectedIds.has(i.id)
+    );
+
+    if (selected.length === 0) return null;
+
+    return (
+      <div
+        key={vendorName}
+        className="mb-8 border rounded-lg p-4 report-section"
+      >
+        <div className="flex justify-between mb-2">
+          <h2 className="font-bold text-lg">🏪 {vendorName}</h2>
+          <span className="text-sm text-slate-600">
+            {selected.length} item{selected.length !== 1 && "s"}
+          </span>
+        </div>
+
+        <table className="w-full text-sm border-t">
+          <thead>
+            <tr>
+              <th className="text-left py-2 w-8">☐</th>
+              <th className="text-left py-2">Item</th>
+              <th className="text-left py-2 w-32">Cycle (days)</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {selected.map((i: any) => (
+              <tr key={i.id} className="border-t">
+                <td className="py-2">☐</td>
+                <td className="py-2">{i.name}</td>
+                <td className="py-2">{i.daysLast || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  })}
+</div>
+
         {/* LIST */}
         <div className="mt-6 space-y-8">
           {Object.keys(grouped).length === 0 && (

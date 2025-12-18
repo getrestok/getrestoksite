@@ -89,22 +89,44 @@ button {
     dark:placeholder-slate-500;
 }
 
-/* Make print look like paper */
-@media print {
-  body {
-    background: white !important;
-  }
 
-  .no-print {
-    display: none !important;
-  }
+  @media print {
+    aside,
+    nav,
+    header,
+    .no-print,
+    .advanced-section,
+    .pro-locked,
+    button {
+      display: none !important;
+    }
 
-  .report-card {
-    box-shadow: none !important;
-    border: none !important;
-  }
+    body {
+      background: white !important;
+    }
 
-  .print-header {
-    margin-top: 0 !important;
+    main {
+      padding: 0 !important;
+    }
+
+    .pickup-report {
+      border: none !important;
+      box-shadow: none !important;
+      max-width: 900px !important;
+      margin: 0 auto !important;
+    }
+
+    .report-section {
+      page-break-inside: avoid;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      padding: 8px 4px;
+    }
   }
-}
