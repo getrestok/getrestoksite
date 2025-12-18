@@ -25,9 +25,15 @@ type Vendor = {
 type Plan = "basic" | "pro" | "premium" | "enterprise";
 
 // --------------------------------------------------
-// 🔒 Blur Lock Component (for advanced section only)
+// 🔒 Blur Lock (for advanced reports)
 // --------------------------------------------------
-function LockedBlur({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function LockedBlur({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
   return (
     <div
       onClick={onClick}
@@ -61,9 +67,7 @@ export default function ReportsPage() {
   const [plan, setPlan] = useState<Plan>("basic");
   const [showUpsell, setShowUpsell] = useState(false);
 
-  // -----------------------
   // AUTH
-  // -----------------------
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
@@ -71,9 +75,7 @@ export default function ReportsPage() {
     });
   }, [router]);
 
-  // -----------------------
   // LOAD PLAN
-  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -92,9 +94,7 @@ export default function ReportsPage() {
     });
   }, [user]);
 
-  // -----------------------
   // LOAD ITEMS
-  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -111,9 +111,7 @@ export default function ReportsPage() {
     );
   }, [user]);
 
-  // -----------------------
   // LOAD VENDORS
-  // -----------------------
   useEffect(() => {
     if (!user) return;
 
@@ -129,9 +127,7 @@ export default function ReportsPage() {
     );
   }, [user]);
 
-  // -----------------------
   // FILTER LOGIC
-  // -----------------------
   useEffect(() => {
     if (!items.length) {
       setFilteredItems([]);
@@ -149,23 +145,18 @@ export default function ReportsPage() {
 
     let result = items;
 
-    if (filter === "low") {
+    if (filter === "low")
       result = items.filter((i) => {
         const d = daysLeft(i);
         return d <= 3 && d > 0;
       });
-    }
 
-    if (filter === "due") {
-      result = items.filter((i) => daysLeft(i) <= 0);
-    }
+    if (filter === "due") result = items.filter((i) => daysLeft(i) <= 0);
 
     setFilteredItems(result);
   }, [items, filter]);
 
-  // -----------------------
   // GROUP BY VENDOR
-  // -----------------------
   const grouped = filteredItems.reduce((acc: any, item) => {
     const vendor =
       (item.vendorId && vendors[item.vendorId]?.name) || "Unassigned Vendor";
@@ -175,89 +166,6 @@ export default function ReportsPage() {
     return acc;
   }, {});
 
-  // -----------------------
-  // ADVANCED REPORTS LOGIC (for Pro+)
-  // -----------------------
-  type ReportRow = {
-    id: string;
-    name: string;
-    avgDaysBetween: number | null;
-    expectedDays: number;
-    reliabilityScore: number | null;
-    runsOutEarly: boolean;
-    alertsTriggered: number;
-  };
-
-  const restockFrequencyReport: ReportRow[] = [];
-  const problemItems: ReportRow[] = [];
-
-  let vendorStats: Record<
-    string,
-    {
-      vendor: string;
-      items: number;
-      avgReliability: number;
-    }
-  > = {};
-
-  items.forEach((item) => {
-    const history: any[] = item.restockHistory || [];
-    const expected = item.daysLast || 0;
-
-    if (history.length < 2) return;
-
-    const sorted = history
-      .map((h) => h.toDate().getTime())
-      .sort((a, b) => a - b);
-
-    const intervals: number[] = [];
-    for (let i = 1; i < sorted.length; i++) {
-      const diff = Math.floor((sorted[i] - sorted[i - 1]) / 86400000);
-      intervals.push(diff);
-    }
-
-    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-
-    const reliability =
-      expected > 0
-        ? Math.min(100, Math.max(0, Math.round((avg / expected) * 100)))
-        : null;
-
-    const row: ReportRow = {
-      id: item.id,
-      name: item.name,
-      avgDaysBetween: Math.round(avg),
-      expectedDays: expected,
-      reliabilityScore: reliability,
-      runsOutEarly: avg < expected,
-      alertsTriggered: item.alertCount || 0,
-    };
-
-    restockFrequencyReport.push(row);
-
-    if (row.runsOutEarly || row.alertsTriggered > 3) {
-      problemItems.push(row);
-    }
-
-    const vendor =
-      (item.vendorId && vendors[item.vendorId]?.name) || "Unassigned Vendor";
-
-    if (!vendorStats[vendor]) {
-      vendorStats[vendor] = { vendor, items: 0, avgReliability: 0 };
-    }
-
-    vendorStats[vendor].items++;
-    vendorStats[vendor].avgReliability += reliability || 0;
-  });
-
-  Object.keys(vendorStats).forEach((v) => {
-    vendorStats[v].avgReliability =
-      Math.round(vendorStats[v].avgReliability / vendorStats[v].items);
-  });
-
-  // -----------------------
-  // UI
-  // -----------------------
   return (
     <motion.main
       className="flex-1 p-10"
@@ -269,16 +177,15 @@ export default function ReportsPage() {
         Generate lists for store pickup, review, or documentation.
       </p>
 
-      {/* BASIC PICKUP REPORT (prints nicely) */}
+      {/* BASIC PICKUP REPORT */}
       <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl pickup-report">
-        {/* Screen-only header */}
+        {/* Screen Header */}
         <div className="no-print">
           <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
           <p className="text-sm text-slate-500 mt-1">
             Print a clean list grouped by vendor to take to the store.
           </p>
 
-          {/* FILTERS */}
           <div className="flex gap-3 mt-4">
             <button
               onClick={() => setFilter("low")}
@@ -321,15 +228,10 @@ export default function ReportsPage() {
             </button>
           </div>
         </div>
-        </div>
 
         {/* PRINT HEADER */}
         <div className="hidden print:block text-center mb-6">
-          <img
-            src="/logo.svg"
-            alt="Restok Logo"
-            className="mx-auto w-12 mb-2"
-          />
+          <img src="/logo.svg" alt="Restok Logo" className="mx-auto w-12 mb-2" />
           <h1 className="text-2xl font-bold">Restok Store Pickup List</h1>
           <p className="text-slate-600 text-sm">
             Generated: {new Date().toLocaleString()}
@@ -337,79 +239,68 @@ export default function ReportsPage() {
         </div>
 
         {/* LIST */}
-<div className="mt-6 space-y-8">
-  {Object.keys(grouped).length === 0 && (
-    <p className="text-slate-500">No items match this report.</p>
-  )}
+        <div className="mt-6 space-y-8">
+          {Object.keys(grouped).length === 0 && (
+            <p className="text-slate-500">No items match this report.</p>
+          )}
 
-  {Object.entries(grouped).map(([vendor, list]: any) => (
-    <div
-      key={vendor}
-      className="
-        report-section 
-        border rounded-xl 
-        bg-slate-50 dark:bg-slate-800/60 
-        shadow-sm
-      "
-    >
-      {/* Vendor Header */}
-      <div className="
-        flex justify-between items-center 
-        px-4 py-3 
-        rounded-t-xl 
-        bg-slate-200 dark:bg-slate-700
-      ">
-        <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
-          🏪 {vendor}
-        </h3>
+          {Object.entries(grouped).map(([vendor, list]: any) => (
+            <div
+              key={vendor}
+              className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
+            >
+              <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
+                <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
+                  🏪 {vendor}
+                </h3>
+                <span className="text-sm text-slate-600 dark:text-slate-300">
+                  {list.length} item{list.length !== 1 && "s"}
+                </span>
+              </div>
 
-        <span className="text-sm text-slate-600 dark:text-slate-300">
-          {list.length} item{list.length !== 1 && "s"}
-        </span>
+              <div className="p-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-700/70">
+                      <th className="text-left py-2 px-1 w-6">✓</th>
+                      <th className="text-left py-2 px-2">Item</th>
+                      <th className="text-left py-2 px-2 w-32">
+                        Cycle (days)
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {list.map((item: Item, i: number) => (
+                      <tr
+                        key={item.id}
+                        className={`border-t border-slate-300 dark:border-slate-600 ${
+                          i % 2 === 0
+                            ? "bg-white dark:bg-slate-900/40"
+                            : ""
+                        }`}
+                      >
+                        <td className="py-2 px-1">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-sky-600"
+                          />
+                        </td>
+                        <td className="py-2 px-2">{item.name}</td>
+                        <td className="py-2 px-2">
+                          {item.daysLast || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="p-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-100 dark:bg-slate-700/70">
-              <th className="text-left py-2 px-1 w-6">✓</th>
-              <th className="text-left py-2 px-2">Item</th>
-              <th className="text-left py-2 px-2 w-32">Cycle (days)</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {list.map((item: Item, i: number) => (
-              <tr
-                key={item.id}
-                className={`
-                  border-t 
-                  border-slate-300 dark:border-slate-600
-                  ${i % 2 === 0 ? "bg-white dark:bg-slate-900/40" : ""}
-                `}
-              >
-                <td className="py-2 px-1 align-top">
-                  <input type="checkbox" className="w-4 h-4 accent-sky-600" />
-                </td>
-
-                <td className="py-2 px-2 text-slate-800 dark:text-slate-200">
-                  {item.name}
-                </td>
-
-                <td className="py-2 px-2 text-slate-700 dark:text-slate-300">
-                  {item.daysLast ? item.daysLast : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  ))}
-</div>
-
-      {/* ADVANCED ANALYTICS (blurred on Basic) */}
+      {/* Advanced Analytics */}
       <h2 className="mt-12 text-2xl font-bold no-print">
         📈 Advanced Analytics
       </h2>
@@ -422,23 +313,16 @@ export default function ReportsPage() {
           </div>
         </LockedBlur>
       ) : (
-        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl advanced-section no-print">
-          {/* You can later replace this placeholder with real charts/tables */}
+        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl no-print">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            Detailed restock frequency, problem items, and vendor performance
-            will appear here.
+            Detailed analytics will go here.
           </p>
         </div>
       )}
 
-      {/* PRINT-ONLY & GLOBAL STYLES */}
+      {/* PRINT STYLES */}
       <style jsx global>{`
         @media print {
-          body {
-            background: white !important;
-          }
-
-          /* Hide app chrome, buttons, and upsell stuff */
           aside,
           nav,
           header,
@@ -449,11 +333,14 @@ export default function ReportsPage() {
             display: none !important;
           }
 
+          body {
+            background: white !important;
+          }
+
           main {
             padding: 0 !important;
           }
 
-          /* Make pickup report full width and clean */
           .pickup-report {
             border: none !important;
             box-shadow: none !important;
@@ -463,7 +350,6 @@ export default function ReportsPage() {
 
           .report-section {
             page-break-inside: avoid;
-            break-inside: avoid;
           }
 
           table {
