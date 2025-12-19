@@ -29,28 +29,43 @@ export async function POST(req: Request) {
       );
     }
 
+    const priceMap: Record<string, string | undefined> = {
+  pro: process.env.STRIPE_PRO_PRICE_ID,
+  premium: process.env.STRIPE_PREMIUM_PRICE_ID,
+  enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID,
+};
+
+const price = priceMap[plan];
+
+if (!price) {
+  return NextResponse.json(
+    { error: "Invalid plan selected" },
+    { status: 400 }
+  );
+}
+
     // ✅ Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer_email: email,
+  mode: "subscription",
+  customer_email: email,
 
-      metadata: {
-        email,
-        name: name || "",
-        phone: phone || "",
-        plan,
-      },
+  metadata: {
+    plan: plan.toLowerCase(),   // normalize 👌
+    email,
+    name: name || "",
+    phone: phone || "",
+  },
 
-      line_items: [
-        {
-          price: process.env.STRIPE_PRO_PRICE_ID,
-          quantity: 1,
-        },
-      ],
+  line_items: [
+    {
+      price,
+      quantity: 1,
+    },
+  ],
 
-      success_url: "https://getrestok.com/login?setup=1",
-      cancel_url: "https://getrestok.com/signup",
-    });
+  success_url: "https://getrestok.com/login?setup=1",
+  cancel_url: "https://getrestok.com/signup",
+});
 
     // ✅ Store TEMP signup data (NO PASSWORD)
     await adminDb.collection("pendingSignups").doc(session.id).set({

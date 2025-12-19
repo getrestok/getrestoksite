@@ -33,7 +33,7 @@ export default function SetPasswordForm() {
         throw new Error(data.error || "Failed to set password");
       }
 
-      router.push("/login?setup=1");
+      router.push("/login");
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
