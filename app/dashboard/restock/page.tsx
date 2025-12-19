@@ -41,7 +41,7 @@ type VendorDoc = {
 export default function RestockPage() {
   const router = useRouter();
 
-  // REVIEW MODE (dashboard sends ?review=ID,ID…)
+  // REVIEW MODE
   const searchParams =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search)
@@ -63,6 +63,12 @@ export default function RestockPage() {
 
   const isProOrHigher =
     plan === "pro" || plan === "premium" || plan === "enterprise";
+
+  // ------------- NEW: LOADING FLAGS -------------
+  const [planLoaded, setPlanLoaded] = useState(false);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
+  const [vendorsLoaded, setVendorsLoaded] = useState(false);
+  const loadingPage = !planLoaded || !itemsLoaded || !vendorsLoaded;
 
   // ---------------------------------
   // AUTH → USER → ORG → PLAN + DATA
@@ -96,6 +102,7 @@ export default function RestockPage() {
             (orgSnap) => {
               const rawPlan = orgSnap.data()?.plan;
               setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+              setPlanLoaded(true);
             }
           );
 
@@ -109,6 +116,7 @@ export default function RestockPage() {
                 map[d.id] = { id: d.id, ...(d.data() as any) };
               });
               setVendors(map);
+              setVendorsLoaded(true);
             }
           );
 
@@ -123,6 +131,7 @@ export default function RestockPage() {
                   ...(d.data() as any),
                 })) as ItemDoc[]
               );
+              setItemsLoaded(true);
             }
           );
         }
@@ -205,6 +214,17 @@ ${user?.displayName || user?.email || "—"}`;
     return `mailto:${vendor.email}?subject=${encodeURIComponent(
       subject
     )}&body=${encodeURIComponent(body)}`;
+  }
+
+  // ---------------------------------
+  // LOADING SCREEN
+  // ---------------------------------
+  if (loadingPage) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-screen">
+        <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
+      </div>
+    );
   }
 
   // ---------------------------------

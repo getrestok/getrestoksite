@@ -10,7 +10,8 @@ type Plan = "basic" | "pro" | "premium" | "enterprise";
 
 export default function Sidebar() {
   const [plan, setPlan] = useState<Plan>("basic");
-  const [role, setRole] = useState<string>("member");
+  const [role, setRole] = useState<"owner" | "admin" | "member">("member");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
@@ -19,7 +20,6 @@ export default function Sidebar() {
     const unsubAuth = auth.onAuthStateChanged((user) => {
       if (!user) return;
 
-      // 🔹 Listen to user doc
       unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
         const data = userSnap.data();
         if (!data) return;
@@ -29,20 +29,20 @@ export default function Sidebar() {
         const orgId = data.orgId;
         if (!orgId) return;
 
-        // cleanup old listener
         unsubOrg?.();
 
-        // 🔹 Listen to org doc
         unsubOrg = onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
           const rawPlan = orgSnap.data()?.plan;
 
           setPlan(
             rawPlan === "pro" ||
-            rawPlan === "premium" ||
-            rawPlan === "enterprise"
+              rawPlan === "premium" ||
+              rawPlan === "enterprise"
               ? rawPlan
               : "basic"
           );
+
+          setLoading(false);
         });
       });
     });
@@ -53,6 +53,11 @@ export default function Sidebar() {
       unsubOrg?.();
     };
   }, []);
+
+  const canSeeUsers =
+    !loading &&
+    (plan === "pro" || plan === "premium" || plan === "enterprise") &&
+    (role === "owner" || role === "admin");
 
   return (
     <aside
@@ -87,8 +92,7 @@ export default function Sidebar() {
         <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
         <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
 
-        {/* ONLY ADMIN + PRO+ CAN SEE USERS */}
-        {(plan !== "basic" && role === "admin") && (
+        {canSeeUsers && (
           <NavItem href="/dashboard/users" label="Users" emoji="👥" />
         )}
 
@@ -115,11 +119,11 @@ export default function Sidebar() {
                 }
               `}
             >
-              {plan.toUpperCase()}
+              {loading ? "..." : plan.toUpperCase()}
             </span>
           </div>
 
-          {plan !== "enterprise" && (
+          {!loading && plan !== "enterprise" && (
             <button
               onClick={() =>
                 (window.location.href = "/dashboard/settings#billing")

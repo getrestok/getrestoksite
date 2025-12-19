@@ -33,6 +33,11 @@ export default function VendorsPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [vendors, setVendors] = useState<VendorDoc[]>([]);
 
+  const [orgLoaded, setOrgLoaded] = useState(false);
+  const [vendorsLoaded, setVendorsLoaded] = useState(false);
+
+  const loadingPage = !orgLoaded || !vendorsLoaded;
+
   // ADD / EDIT
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<VendorDoc | null>(null);
@@ -45,7 +50,6 @@ export default function VendorsPage() {
   // DELETE CONFIRM
   const [deleteVendor, setDeleteVendor] = useState<VendorDoc | null>(null);
 
-  // ---------- Animation Variants ----------
   const modalBackdrop: Variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1 },
@@ -59,12 +63,7 @@ export default function VendorsPage() {
       y: 0,
       transition: { type: "spring", stiffness: 220, damping: 18 },
     },
-    exit: {
-      opacity: 0,
-      scale: 0.95,
-      y: 10,
-      transition: { duration: 0.15 },
-    },
+    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } },
   };
 
   // -------------------------
@@ -82,20 +81,20 @@ export default function VendorsPage() {
 
       setUser(u);
 
-      // Get orgId from user doc
       unsubOrg = onSnapshot(doc(db, "users", u.uid), (snap) => {
         const data = snap.data();
         if (!data?.orgId) return;
 
         setOrgId(data.orgId);
+        setOrgLoaded(true);
 
-        // Load vendors from org collection
         unsubVendors = onSnapshot(
           collection(db, "organizations", data.orgId, "vendors"),
           (snap) => {
             setVendors(
               snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
             );
+            setVendorsLoaded(true);
           }
         );
       });
@@ -130,13 +129,10 @@ export default function VendorsPage() {
           payload
         );
       } else {
-        await addDoc(
-          collection(db, "organizations", orgId, "vendors"),
-          {
-            ...payload,
-            createdAt: serverTimestamp(),
-          }
-        );
+        await addDoc(collection(db, "organizations", orgId, "vendors"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
       }
 
       resetModal();
@@ -156,12 +152,11 @@ export default function VendorsPage() {
   }
 
   // -------------------------
-  // DELETE VENDOR (SAFE)
+  // DELETE VENDOR SAFELY
   // -------------------------
   async function handleDeleteVendor(vendor: VendorDoc) {
     if (!orgId) return;
 
-    // Check if vendor is used by any org items
     const itemsSnap = await getDocs(
       query(
         collection(db, "organizations", orgId, "items"),
@@ -174,10 +169,19 @@ export default function VendorsPage() {
       return;
     }
 
-    await deleteDoc(
-      doc(db, "organizations", orgId, "vendors", vendor.id)
-    );
+    await deleteDoc(doc(db, "organizations", orgId, "vendors", vendor.id));
     setDeleteVendor(null);
+  }
+
+  // -------------------------
+  // LOADING UI
+  // -------------------------
+  if (loadingPage) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-screen">
+        <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
+      </div>
+    );
   }
 
   // -------------------------
@@ -272,7 +276,7 @@ export default function VendorsPage() {
         ))}
       </div>
 
-      {/* ADD / EDIT MODAL */}
+      {/* MODALS BELOW (unchanged) */}
       {showModal && (
         <motion.div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -344,7 +348,6 @@ export default function VendorsPage() {
         </motion.div>
       )}
 
-      {/* DELETE CONFIRM */}
       {deleteVendor && (
         <motion.div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
