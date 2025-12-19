@@ -8,16 +8,15 @@ import crypto from "crypto";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// Normalize any weird Stripe values
+// -------------------------
+// PLAN NORMALIZER
+// -------------------------
 function normalizePlan(value: any): "basic" | "pro" | "premium" | "enterprise" {
-  const v = String(value || "")
-    .toLowerCase()
-    .trim();
+  const v = String(value || "").toLowerCase().trim();
 
   if (v.includes("enterprise")) return "enterprise";
   if (v.includes("premium")) return "premium";
   if (v.includes("pro")) return "pro";
-
   return "basic";
 }
 
@@ -26,10 +25,7 @@ export async function POST(req: Request) {
   const body = await req.text();
 
   if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
-    return NextResponse.json(
-      { error: "Missing webhook secret" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing webhook secret" }, { status: 400 });
   }
 
   let event: Stripe.Event;
@@ -47,9 +43,9 @@ export async function POST(req: Request) {
 
   console.log("🔔 Stripe event:", event.type);
 
-  // ------------------------------------------------------------------
-  //  CHECKOUT COMPLETED → NEW ACCOUNT CREATION
-  // ------------------------------------------------------------------
+  // =========================================================================
+  // CHECKOUT COMPLETED → CREATE USER + ORG
+  // =========================================================================
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
@@ -64,49 +60,57 @@ export async function POST(req: Request) {
     const pending = pendingSnap.data()!;
     const { email, name, phone, plan } = pending;
 
-    // Prevent duplicate users
+    // Prevent duplicates
     const existingUser = await adminAuth
       .getUserByEmail(email)
       .catch(() => null);
 
     if (existingUser) {
-      console.log("ℹ️ User already exists:", email);
+      console.log("ℹ️ User already exists, skipping:", email);
       return NextResponse.json({ received: true });
     }
 
     const normalizedPlan = normalizePlan(plan);
 
-    // Create Firebase user
+    // Create Firebase Auth user
     const userRecord = await adminAuth.createUser({
       email,
       displayName: name,
     });
 
-    // Create organization
-    await adminDb.collection("organizations").doc(userRecord.uid).set({
+    const orgId = userRecord.uid;
+
+    // ================================
+    // CREATE ORGANIZATION (ID = UID)
+    // ================================
+    await adminDb.collection("organizations").doc(orgId).set({
       name: name || "My Organization",
-      ownerId: userRecord.uid,
+      ownerId: orgId,
       plan: normalizedPlan,
       stripeCustomerId: session.customer ?? null,
       stripeSubscriptionId: session.subscription ?? null,
       createdAt: Timestamp.now(),
     });
 
-    // Create user profile
-    await adminDb.collection("users").doc(userRecord.uid).set({
+    // ================================
+    // CREATE USER PROFILE
+    // ================================
+    await adminDb.collection("users").doc(orgId).set({
       name,
       email,
       phone: phone || "",
-      orgId: userRecord.uid,
+      orgId,                // <-- ALWAYS MATCHES
       role: "admin",
       createdAt: Timestamp.now(),
     });
 
-    // Create password setup token
+    // ================================
+    // PASSWORD TOKEN
+    // ================================
     const token = crypto.randomBytes(32).toString("hex");
 
     await adminDb.collection("passwordSetupTokens").doc(token).set({
-      uid: userRecord.uid,
+      uid: orgId,
       email,
       createdAt: Timestamp.now(),
       expiresAt: Timestamp.fromDate(
@@ -116,7 +120,7 @@ export async function POST(req: Request) {
 
     const setupUrl = `https://getrestok.com/set-password?token=${token}`;
 
-    // Send email
+    // EMAIL
     await resend.emails.send({
       from: "Restok <accounts@getrestok.com>",
       to: email,
@@ -124,13 +128,12 @@ export async function POST(req: Request) {
       html: buildPasswordEmail(setupUrl),
     });
 
-    // Remove pending entry
     await pendingRef.delete();
   }
 
-  // ------------------------------------------------------------------
-  //  SUBSCRIPTION UPDATED → KEEP PLAN IN SYNC
-  // ------------------------------------------------------------------
+  // =========================================================================
+  // SUBSCRIPTION UPDATED → KEEP PLAN IN SYNC
+  // =========================================================================
   if (event.type === "customer.subscription.updated") {
     const sub = event.data.object as Stripe.Subscription;
 
@@ -140,9 +143,9 @@ export async function POST(req: Request) {
       "";
 
     const cleanPlan = normalizePlan(nickname);
-
     const customerId = sub.customer as string;
 
+    // Find org by stripe customer
     const orgSnap = await adminDb
       .collection("organizations")
       .where("stripeCustomerId", "==", customerId)
@@ -157,16 +160,24 @@ export async function POST(req: Request) {
 
       console.log("✅ Org plan updated →", cleanPlan);
     } else {
-      console.warn("⚠️ No org found for subscription update");
+      console.warn("⚠️ No org found for subscription update — creating fallback");
+
+      // If this ever happens, we create the org so app doesn't break
+      await adminDb.collection("organizations").add({
+        plan: cleanPlan,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: sub.id,
+        createdAt: Timestamp.now(),
+      });
     }
   }
 
   return NextResponse.json({ received: true });
 }
 
-// ------------------------------------------------------------
+// =================================================================
 // EMAIL TEMPLATE
-// ------------------------------------------------------------
+// =================================================================
 function buildPasswordEmail(setupUrl: string) {
   return `
 <!DOCTYPE html>
