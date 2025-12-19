@@ -56,7 +56,7 @@ export default function Sidebar() {
 
   const canSeeUsers =
     !loading &&
-    (plan === "pro" || plan === "premium" || plan === "enterprise") &&
+    (plan === "basic" || plan === "pro" || plan === "premium" || plan === "enterprise") &&
     (role === "owner" || role === "admin");
 
   return (

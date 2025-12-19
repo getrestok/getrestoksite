@@ -30,7 +30,9 @@ export default function UsersPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState("");
 
+  // ----------------------
   // AUTH + ORG + ROLE + PLAN
+  // ----------------------
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
@@ -45,23 +47,32 @@ export default function UsersPage() {
         setRole(data.role || "member");
         setRoleLoaded(true);
 
-        onSnapshot(doc(db, "organizations", data.orgId), (orgSnap) => {
-          const p = orgSnap.data()?.plan;
-          setPlan(p && p in PLANS ? p : "basic");
-        });
+        onSnapshot(
+          doc(db, "organizations", data.orgId),
+          (orgSnap) => {
+            const p = orgSnap.data()?.plan;
+            setPlan(p && p in PLANS ? p : "basic");
+          }
+        );
       });
     });
   }, [router]);
 
+  // ----------------------
   // SECURITY PAGE GUARD
+  // ----------------------
   useEffect(() => {
     if (!roleLoaded) return;
-    if (role !== "owner" && role !== "admin") {
+
+    // Members are blocked entirely
+    if (role === "member") {
       router.replace("/dashboard");
     }
   }, [role, roleLoaded, router]);
 
+  // ----------------------
   // LOAD MEMBERS
+  // ----------------------
   useEffect(() => {
     if (!orgId) return;
 
@@ -76,22 +87,29 @@ export default function UsersPage() {
     );
   }, [orgId]);
 
-  // PLAN SEAT LIMITS
+  // ----------------------
+  // PLAN LIMITS
+  // ----------------------
   const memberLimit =
     plan === "pro" ? 5 : plan === "premium" ? Infinity : 1;
 
   const atLimit =
     memberLimit !== Infinity && members.length >= memberLimit;
 
+  // ----------------------
   // COUNT ADMINS
+  // ----------------------
   const adminCount = members.filter(
     (m) => m.role === "admin" || m.role === "owner"
   ).length;
 
   const isLastAdmin = (m: any) =>
-    (m.role === "admin" || m.role === "owner") && adminCount <= 1;
+    (m.role === "admin" || m.role === "owner") &&
+    adminCount <= 1;
 
-  // CREATE USER (Invite Flow Only)
+  // ----------------------
+  // INVITE USER
+  // ----------------------
   async function createUser(e: any) {
     e.preventDefault();
     if (!orgId) return;
@@ -114,7 +132,6 @@ export default function UsersPage() {
     setShowAdd(false);
   }
 
-  // UPDATE ROLE
   async function updateRole(uid: string, newRole: string) {
     const token = await auth.currentUser?.getIdToken();
 
@@ -131,9 +148,8 @@ export default function UsersPage() {
     if (data.error) alert(data.error);
   }
 
-  // TRANSFER OWNERSHIP
   async function transferOwnership(uid: string) {
-    if (!confirm("Transfer organization ownership? This cannot be undone."))
+    if (!confirm("Transfer organization ownership?"))
       return;
 
     const token = await auth.currentUser?.getIdToken();
@@ -151,11 +167,13 @@ export default function UsersPage() {
     if (data.error) alert(data.error);
   }
 
-  // DELETE USER
   async function deleteUser(uid: string, m: any) {
-    if (uid === user?.uid) return alert("You cannot remove yourself.");
-    if (m.role === "owner") return alert("You cannot remove the owner.");
-    if (isLastAdmin(m)) return alert("You must have at least one admin.");
+    if (uid === user?.uid)
+      return alert("You cannot remove yourself.");
+    if (m.role === "owner")
+      return alert("You cannot remove the owner.");
+    if (isLastAdmin(m))
+      return alert("You must have at least one admin.");
 
     if (!confirm("Remove this user?")) return;
 
@@ -190,134 +208,181 @@ export default function UsersPage() {
         Role: <strong>{role}</strong>
       </div>
 
-      <div className="mt-3 text-sm">
-        {memberLimit === Infinity
-          ? "Unlimited members"
-          : `${members.length} / ${memberLimit} seats`}
-      </div>
+      {/* ---------- BASIC PLAN UPSALE ---------- */}
+      {plan === "basic" && (
+        <div className="mt-6 p-6 rounded-xl border bg-white dark:bg-slate-800 max-w-xl">
+          <h2 className="text-xl font-semibold">
+            Add More Users
+          </h2>
 
-      {/* HEADER */}
-      <div className="mt-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Organization Members</h2>
+          <p className="text-slate-600 dark:text-slate-400 mt-2">
+            Your current plan only supports one user. Upgrade to
+            unlock team accounts, roles, and permissions.
+          </p>
 
-        {(plan === "pro" || plan === "premium") &&
-          (role === "owner" || role === "admin") && (
-            <button
-              onClick={() => !atLimit && setShowAdd(true)}
-              disabled={atLimit}
-              className={`px-4 py-2 rounded-lg text-white ${
-                atLimit ? "bg-gray-400" : "bg-sky-600 hover:bg-sky-700"
-              }`}
-            >
-              + Add User
-            </button>
-          )}
-      </div>
-
-      {/* MEMBERS */}
-      <div className="mt-6 space-y-3">
-        {(loading || !roleLoaded) && <p>Loading…</p>}
-
-        {members.map((m) => (
-          <div
-            key={m.id}
-            className="p-4 rounded-xl border flex justify-between items-center"
+          <button
+            onClick={() =>
+              (window.location.href =
+                "/dashboard/settings#billing")
+            }
+            className="mt-4 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg"
           >
-            <div>
-              <div className="font-medium">{m.email}</div>
-              <div className="text-xs text-slate-500">{m.role}</div>
-            </div>
-
-            <div className="flex gap-2">
-              {role === "owner" && m.role !== "owner" && (
-                <button
-                  onClick={() => transferOwnership(m.id)}
-                  className="px-3 py-1 bg-amber-600 text-white rounded"
-                >
-                  Transfer Ownership
-                </button>
-              )}
-
-              {(role === "owner" || role === "admin") &&
-                m.role !== "owner" && (
-                  <>
-                    <button
-                      disabled={isLastAdmin(m)}
-                      onClick={() =>
-                        updateRole(
-                          m.id,
-                          m.role === "admin" ? "member" : "admin"
-                        )
-                      }
-                      className={`px-3 py-1 rounded text-white ${
-                        isLastAdmin(m)
-                          ? "bg-gray-500"
-                          : "bg-purple-600 hover:bg-purple-700"
-                      }`}
-                    >
-                      {m.role === "admin"
-                        ? "Demote"
-                        : "Promote to Admin"}
-                    </button>
-
-                    <button
-                      disabled={isLastAdmin(m)}
-                      onClick={() => deleteUser(m.id, m)}
-                      className={`px-3 py-1 rounded text-white ${
-                        isLastAdmin(m)
-                          ? "bg-gray-500"
-                          : "bg-red-600 hover:bg-red-700"
-                      }`}
-                    >
-                      Remove
-                    </button>
-                  </>
-                )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ADD USER (Invite Only) */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <form
-            onSubmit={createUser}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
-          >
-            <h2 className="text-lg font-semibold">Invite New User</h2>
-
-            <input
-              className="input"
-              placeholder="User email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            <p className="text-xs text-slate-500">
-              The user will receive an email to set their password and
-              activate their account.
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAdd(false)}
-                className="w-1/2 border p-3 rounded"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="w-1/2 bg-sky-600 text-white p-3 rounded"
-              >
-                Send Invite
-              </button>
-            </div>
-          </form>
+            Upgrade Plan
+          </button>
         </div>
+      )}
+
+      {/* ---------- ONLY SHOW MANAGEMENT IF NOT BASIC ---------- */}
+      {plan !== "basic" && (
+        <>
+          <div className="mt-3 text-sm">
+            {memberLimit === Infinity
+              ? "Unlimited members"
+              : `${members.length} / ${memberLimit} seats`}
+          </div>
+
+          {/* Header */}
+          <div className="mt-6 flex justify-between items-center">
+            <h2 className="text-xl font-semibold">
+              Organization Members
+            </h2>
+
+            {(role === "owner" || role === "admin") && (
+              <button
+                onClick={() => !atLimit && setShowAdd(true)}
+                disabled={atLimit}
+                className={`px-4 py-2 rounded-lg text-white ${
+                  atLimit
+                    ? "bg-gray-400"
+                    : "bg-sky-600 hover:bg-sky-700"
+                }`}
+              >
+                + Add User
+              </button>
+            )}
+          </div>
+
+          {/* Members */}
+          <div className="mt-6 space-y-3">
+            {(loading || !roleLoaded) && <p>Loading…</p>}
+
+            {members.map((m) => (
+              <div
+                key={m.id}
+                className="p-4 rounded-xl border flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-medium">
+                    {m.email}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {m.role}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {role === "owner" &&
+                    m.role !== "owner" && (
+                      <button
+                        onClick={() =>
+                          transferOwnership(m.id)
+                        }
+                        className="px-3 py-1 bg-amber-600 text-white rounded"
+                      >
+                        Transfer Ownership
+                      </button>
+                    )}
+
+                  {(role === "owner" || role === "admin") &&
+                    m.role !== "owner" && (
+                      <>
+                        <button
+                          disabled={isLastAdmin(m)}
+                          onClick={() =>
+                            updateRole(
+                              m.id,
+                              m.role === "admin"
+                                ? "member"
+                                : "admin"
+                            )
+                          }
+                          className={`px-3 py-1 rounded text-white ${
+                            isLastAdmin(m)
+                              ? "bg-gray-500"
+                              : "bg-purple-600 hover:bg-purple-700"
+                          }`}
+                        >
+                          {m.role === "admin"
+                            ? "Demote"
+                            : "Promote"}
+                        </button>
+
+                        <button
+                          disabled={isLastAdmin(m)}
+                          onClick={() =>
+                            deleteUser(m.id, m)
+                          }
+                          className={`px-3 py-1 rounded text-white ${
+                            isLastAdmin(m)
+                              ? "bg-gray-500"
+                              : "bg-red-600 hover:bg-red-700"
+                          }`}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Invite Modal */}
+          {showAdd && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+              <form
+                onSubmit={createUser}
+                className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+              >
+                <h2 className="text-lg font-semibold">
+                  Invite New User
+                </h2>
+
+                <input
+                  className="input"
+                  placeholder="User email"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(e.target.value)
+                  }
+                  required
+                />
+
+                <p className="text-xs text-slate-500">
+                  The user will receive an invite email to
+                  create their account.
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdd(false)}
+                    className="w-1/2 border p-3 rounded"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-sky-600 text-white p-3 rounded"
+                  >
+                    Send Invite
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
       )}
     </motion.main>
   );
