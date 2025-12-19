@@ -22,6 +22,7 @@ export default function UsersPage() {
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
   const [role, setRole] =
     useState<"owner" | "admin" | "member">("member");
+    const [roleLoaded, setRoleLoaded] = useState(false);
 
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,7 @@ export default function UsersPage() {
 
         setOrgId(data.orgId);
         setRole(data.role || "member");
+        setRoleLoaded(true);
 
         onSnapshot(doc(db, "organizations", data.orgId), (orgSnap) => {
           const p = orgSnap.data()?.plan;
@@ -59,11 +61,13 @@ export default function UsersPage() {
   // SECURITY PAGE GUARD
   // -----------------------
   useEffect(() => {
-    if (!role) return;
-    if (role !== "owner" && role !== "admin") {
-      router.replace("/dashboard");
-    }
-  }, [role, router]);
+  if (!roleLoaded) return;
+
+  if (role !== "owner" && role !== "admin") {
+    console.warn("❌ Non-admin blocked from Users page");
+    router.replace("/dashboard");
+  }
+}, [role, roleLoaded, router]);
 
   // -----------------------
   // LOAD MEMBERS
@@ -242,7 +246,7 @@ export default function UsersPage() {
 
       {/* MEMBERS */}
       <div className="mt-6 space-y-3">
-        {loading && <p>Loading…</p>}
+        {(loading || !roleLoaded) && <p>Loading…</p>}
 
         {members.map((m) => (
           <div
