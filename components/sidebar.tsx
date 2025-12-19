@@ -79,6 +79,11 @@ export default function Sidebar() {
         {/* ⭐ NEW REPORTS PAGE */}
         <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
 
+        {(plan === "pro" || plan === "premium" || plan === "enterprise") && (
+  <NavItem href="/dashboard/users" label="Users" emoji="👥" />
+)}
+
+        
         <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
       </nav>
 
