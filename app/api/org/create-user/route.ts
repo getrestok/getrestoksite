@@ -13,26 +13,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create auth user
+    // Create Firebase Auth user
     const userRecord = await getAuth().createUser({
       email,
       password,
     });
 
-    // Store Firestore user doc
-    await adminDb
-      .collection("users")
-      .doc(userRecord.uid)
-      .set({
-        email,
-        orgId,
-        role: "member",
-        createdAt: Date.now(),
-      });
+    // ⭐ Write Firestore user profile
+    await adminDb.doc(`users/${userRecord.uid}`).set({
+      email,
+      orgId,
+      role: "member",
+      createdAt: Date.now(),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error(err);
+    console.error("Create user failed:", err);
     return NextResponse.json(
       { error: err.message || "Something went wrong" },
       { status: 500 }

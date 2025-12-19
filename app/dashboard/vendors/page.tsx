@@ -30,6 +30,7 @@ type VendorDoc = {
 export default function VendorsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [vendors, setVendors] = useState<VendorDoc[]>([]);
 
   // ADD / EDIT
@@ -67,9 +68,10 @@ export default function VendorsPage() {
   };
 
   // -------------------------
-  // AUTH + LOAD VENDORS
+  // AUTH + LOAD ORG + VENDORS
   // -------------------------
   useEffect(() => {
+    let unsubOrg: (() => void) | undefined;
     let unsubVendors: (() => void) | undefined;
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
@@ -80,20 +82,28 @@ export default function VendorsPage() {
 
       setUser(u);
 
-      unsubVendors = onSnapshot(
-        collection(db, "users", u.uid, "vendors"),
-        (snap) => {
-          const data = snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          }));
-          setVendors(data);
-        }
-      );
+      // Get orgId from user doc
+      unsubOrg = onSnapshot(doc(db, "users", u.uid), (snap) => {
+        const data = snap.data();
+        if (!data?.orgId) return;
+
+        setOrgId(data.orgId);
+
+        // Load vendors from org collection
+        unsubVendors = onSnapshot(
+          collection(db, "organizations", data.orgId, "vendors"),
+          (snap) => {
+            setVendors(
+              snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
+            );
+          }
+        );
+      });
     });
 
     return () => {
       unsubAuth();
+      unsubOrg?.();
       unsubVendors?.();
     };
   }, [router]);
@@ -103,8 +113,7 @@ export default function VendorsPage() {
   // -------------------------
   async function handleSaveVendor(e: React.FormEvent) {
     e.preventDefault();
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!orgId) return;
 
     const payload = {
       name: name.trim(),
@@ -117,14 +126,17 @@ export default function VendorsPage() {
     try {
       if (editingVendor) {
         await updateDoc(
-          doc(db, "users", uid, "vendors", editingVendor.id),
+          doc(db, "organizations", orgId, "vendors", editingVendor.id),
           payload
         );
       } else {
-        await addDoc(collection(db, "users", uid, "vendors"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-        });
+        await addDoc(
+          collection(db, "organizations", orgId, "vendors"),
+          {
+            ...payload,
+            createdAt: serverTimestamp(),
+          }
+        );
       }
 
       resetModal();
@@ -147,12 +159,12 @@ export default function VendorsPage() {
   // DELETE VENDOR (SAFE)
   // -------------------------
   async function handleDeleteVendor(vendor: VendorDoc) {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!orgId) return;
 
+    // Check if vendor is used by any org items
     const itemsSnap = await getDocs(
       query(
-        collection(db, "users", uid, "items"),
+        collection(db, "organizations", orgId, "items"),
         where("vendorId", "==", vendor.id)
       )
     );
@@ -162,7 +174,9 @@ export default function VendorsPage() {
       return;
     }
 
-    await deleteDoc(doc(db, "users", uid, "vendors", vendor.id));
+    await deleteDoc(
+      doc(db, "organizations", orgId, "vendors", vendor.id)
+    );
     setDeleteVendor(null);
   }
 

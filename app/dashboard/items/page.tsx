@@ -49,6 +49,8 @@ type ItemDoc = {
   category?: string;
   locationId?: string;
   createdAt?: any;
+  createdByName?: string;
+  createdByUid?: string;
 };
 
 type VendorDoc = {
@@ -145,7 +147,7 @@ export default function ItemsPage() {
       }
 
       onSnapshot(
-        collection(db, "users", currentUser.uid, "vendors"),
+        collection(db, "organizations", orgId!, "vendors"),
         (snap) => {
           const vendorData = snap.docs.map((d) => ({
             id: d.id,
@@ -171,7 +173,7 @@ export default function ItemsPage() {
       });
 
       unsubItems = onSnapshot(
-        collection(db, "users", currentUser.uid, "items"),
+        collection(db, "organizations", currentUser.uid, "items"),
         (snap) => {
           const itemsData = snap.docs.map((d) => ({
             id: d.id,
@@ -217,12 +219,17 @@ export default function ItemsPage() {
     e.preventDefault();
     if (!user || atItemLimit) return;
 
-    await addDoc(collection(db, "users", user.uid, "items"), {
-      name,
-      vendorId: vendorId || null,
-      daysLast: Number(daysLast),
-      createdAt: serverTimestamp(),
-    });
+   await addDoc(
+  collection(db, "organizations", orgId!, "items"),
+  {
+    name,
+    vendorId: vendorId || null,
+    daysLast: Number(daysLast),
+    createdAt: serverTimestamp(),
+    createdByUid: user.uid,
+    createdByName: user.displayName || user.email
+  }
+);
 
     setName("");
     setDaysLast("");
@@ -232,26 +239,30 @@ export default function ItemsPage() {
 
   async function handleRefillItem(id: string) {
     if (!user) return;
-    await updateDoc(doc(db, "users", user.uid, "items", id), {
-      createdAt: new Date(),
-    });
+    await updateDoc(
+  doc(db, "organizations", orgId!, "items", id),
+  { createdAt: new Date() }
+);
     router.push("/dashboard/restock");
   }
 
   async function handleDeleteItem(id: string) {
     if (!user) return;
-    await deleteDoc(doc(db, "users", user.uid, "items", id));
+    await deleteDoc(doc(db, "organizations", user.uid, "items", id));
   }
 
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !editItem) return;
 
-    await updateDoc(doc(db, "users", user.uid, "items", editItem.id), {
-      name: editItem.name,
-      vendorId: editItem.vendorId || null,
-      daysLast: Number(editItem.daysLast),
-    });
+    await updateDoc(
+  doc(db, "organizations", orgId!, "items", editItem.id),
+  {
+    name: editItem.name,
+    vendorId: editItem.vendorId || null,
+    daysLast: Number(editItem.daysLast),
+  }
+);
 
     setShowEdit(false);
     setEditItem(null);
@@ -357,6 +368,10 @@ export default function ItemsPage() {
                   Vendor: {getVendorName(item)}
                 </p>
               </div>
+
+              <p className="text-xs text-slate-500 mt-1">
+  Added by {item.createdByName || "Unknown"}
+</p>
 
               <div className="flex gap-2 shrink-0">
                 <motion.button

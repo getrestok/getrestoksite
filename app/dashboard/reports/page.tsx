@@ -13,8 +13,6 @@ type Item = {
   daysLast: number;
   createdAt?: any;
   vendorId?: string;
-  restockHistory?: any[];
-  alertCount?: number;
 };
 
 type Vendor = {
@@ -25,20 +23,12 @@ type Vendor = {
 
 type Plan = "basic" | "pro" | "premium" | "enterprise";
 
-// --------------------------------------------------
-// 🔒 Blur Lock (for advanced reports)
-// --------------------------------------------------
-function LockedBlur({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+// 🔒 PRO Upsell Blur
+function LockedBlur({ children, onClick }: any) {
   return (
     <div
       onClick={onClick}
-      className="relative overflow-hidden group cursor-pointer pro-locked advanced-section no-print"
+      className="relative overflow-hidden group cursor-pointer no-print"
     >
       <div className="blur-sm pointer-events-none select-none group-hover:blur-md transition">
         {children}
@@ -61,6 +51,8 @@ export default function ReportsPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<any>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+
   const [items, setItems] = useState<Item[]>([]);
   const [vendors, setVendors] = useState<Record<string, Vendor>>({});
   const [filter, setFilter] = useState<"low" | "due" | "all">("low");
@@ -68,67 +60,56 @@ export default function ReportsPage() {
   const [plan, setPlan] = useState<Plan>("basic");
   const [showUpsell, setShowUpsell] = useState(false);
 
-  // ✅ selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // -----------------------
-  // AUTH
-  // -----------------------
+  // AUTH + ORG + PLAN
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
+    return onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
+
       setUser(u);
+
+      onSnapshot(doc(db, "users", u.uid), (snap) => {
+        const org = snap.data()?.orgId;
+        if (!org) return;
+
+        setOrgId(org);
+
+        onSnapshot(doc(db, "organizations", org), (orgSnap) => {
+          const p = orgSnap.data()?.plan;
+          setPlan(
+            p === "pro" || p === "premium" || p === "enterprise"
+              ? p
+              : "basic"
+          );
+        });
+      });
     });
   }, [router]);
 
-  // -----------------------
-  // LOAD PLAN
-  // -----------------------
+  // ORG ITEMS
   useEffect(() => {
-    if (!user) return;
-
-    return onSnapshot(doc(db, "users", user.uid), (snap) => {
-      const orgId = snap.data()?.orgId;
-      if (!orgId) return;
-
-      onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
-        const p = orgSnap.data()?.plan;
-        setPlan(
-          p === "pro" || p === "premium" || p === "enterprise"
-            ? p
-            : "basic"
-        );
-      });
-    });
-  }, [user]);
-
-  // -----------------------
-  // LOAD ITEMS
-  // -----------------------
-  useEffect(() => {
-    if (!user) return;
+    if (!orgId) return;
 
     return onSnapshot(
-      collection(db, "users", user.uid, "items"),
+      collection(db, "organizations", orgId, "items"),
       (snap) => {
-        const data = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        })) as Item[];
-
-        setItems(data);
+        setItems(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          })) as Item[]
+        );
       }
     );
-  }, [user]);
+  }, [orgId]);
 
-  // -----------------------
-  // LOAD VENDORS
-  // -----------------------
+  // ORG VENDORS
   useEffect(() => {
-    if (!user) return;
+    if (!orgId) return;
 
     return onSnapshot(
-      collection(db, "users", user.uid, "vendors"),
+      collection(db, "organizations", orgId, "vendors"),
       (snap) => {
         const map: Record<string, Vendor> = {};
         snap.docs.forEach((d) => {
@@ -137,15 +118,13 @@ export default function ReportsPage() {
         setVendors(map);
       }
     );
-  }, [user]);
+  }, [orgId]);
 
-  // -----------------------
-  // FILTER LOGIC
-  // -----------------------
+  // FILTERING
   useEffect(() => {
     if (!items.length) {
       setFilteredItems([]);
-      setSelectedIds(new Set()); // clear selection when list empties
+      setSelectedIds(new Set());
       return;
     }
 
@@ -160,36 +139,27 @@ export default function ReportsPage() {
 
     let result = items;
 
-    if (filter === "low") {
+    if (filter === "low")
       result = items.filter((i) => {
         const d = daysLeft(i);
         return d <= 3 && d > 0;
       });
-    }
 
-    if (filter === "due") {
+    if (filter === "due")
       result = items.filter((i) => daysLeft(i) <= 0);
-    }
 
     setFilteredItems(result);
-
-    // Optional: you could also auto-trim selection to visible items.
-    // For now we leave previously-checked boxes as-is.
   }, [items, filter]);
 
-  // -----------------------
-  // GROUP BY VENDOR
-  // -----------------------
-  // Only include items whose vendor has a physical store
-const storeItems = filteredItems.filter(item => {
-  if (!item.vendorId) return false; // ignore unassigned
-  const v = vendors[item.vendorId];
-  return v?.hasPhysicalStore === true;
-});
+  // Only vendors with physical stores
+  const storeItems = filteredItems.filter((item) => {
+    if (!item.vendorId) return false;
+    const v = vendors[item.vendorId];
+    return v?.hasPhysicalStore === true;
+  });
 
-// Group by vendor (but now it's only store vendors)
-const grouped: Record<string, Item[]> = storeItems.reduce(
-  (acc: Record<string, Item[]>, item) => {
+  // Group store items by vendor
+  const grouped = storeItems.reduce((acc: any, item) => {
     const vendorName =
       (item.vendorId && vendors[item.vendorId]?.name) ||
       "Unknown Vendor";
@@ -197,50 +167,26 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
     if (!acc[vendorName]) acc[vendorName] = [];
     acc[vendorName].push(item);
     return acc;
-  },
-  {}
-);
+  }, {});
 
-  // -----------------------
-  // SELECT HELPERS
-  // -----------------------
-
+  // Select logic
   const allVisibleIds = filteredItems.map((i) => i.id);
   const allVisibleSelected =
     allVisibleIds.length > 0 &&
     allVisibleIds.every((id) => selectedIds.has(id));
 
   function toggleAllVisible() {
-    if (allVisibleSelected) {
-      // unselect all visible
-      const next = new Set(selectedIds);
-      allVisibleIds.forEach((id) => next.delete(id));
-      setSelectedIds(next);
-    } else {
-      // select all visible
-      const next = new Set(selectedIds);
-      allVisibleIds.forEach((id) => next.add(id));
-      setSelectedIds(next);
-    }
-  }
-
-  function toggleVendorGroup(vendor: string, list: Item[]) {
-    const ids = list.map((i) => i.id);
-    const allVendorSelected = ids.every((id) => selectedIds.has(id));
-
     const next = new Set(selectedIds);
-    if (allVendorSelected) {
-      ids.forEach((id) => next.delete(id));
-    } else {
-      ids.forEach((id) => next.add(id));
-    }
+    if (allVisibleSelected)
+      allVisibleIds.forEach((id) => next.delete(id));
+    else allVisibleIds.forEach((id) => next.add(id));
+
     setSelectedIds(next);
   }
 
   function toggleSingle(id: string) {
     const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    next.has(id) ? next.delete(id) : next.add(id);
     setSelectedIds(next);
   }
 
@@ -257,7 +203,6 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
 
       {/* BASIC PICKUP REPORT */}
       <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl pickup-report">
-        {/* Screen Header */}
         <div className="no-print">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -267,7 +212,6 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
               </p>
             </div>
 
-            {/* Select all toggle summary */}
             <div className="text-right text-xs text-slate-500">
               <div>
                 Selected:{" "}
@@ -276,12 +220,15 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
                   {selectedIds.size !== 1 && "s"}
                 </span>
               </div>
+
               <button
                 type="button"
                 onClick={toggleAllVisible}
                 className="mt-1 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                {allVisibleSelected ? "Unselect all" : "Select all visible"}
+                {allVisibleSelected
+                  ? "Unselect all"
+                  : "Select all visible"}
               </button>
             </div>
           </div>
@@ -339,106 +286,114 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
           </p>
         </div>
 
-        {/* LIST - SCREEN VIEW */}
-<div className="mt-6 space-y-8 no-print">
-  {Object.keys(grouped).length === 0 && (
-    <p className="text-slate-500">No items match this report.</p>
-  )}
+        {/* SCREEN LIST */}
+        <div className="mt-6 space-y-8 no-print">
+          {Object.keys(grouped).length === 0 && (
+            <p className="text-slate-500">
+              No items match this report.
+            </p>
+          )}
 
-  {Object.entries(grouped).map(([vendorName, list]) => (
-    <div
-      key={vendorName}
-      className="report-section border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
-    >
-      <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
-        <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
-          🏪 {vendorName}
-        </h3>
+          {Object.entries(grouped).map(([vendorName, list]: any) => (
+            <div
+              key={vendorName}
+              className="border rounded-xl bg-slate-50 dark:bg-slate-800/60 shadow-sm"
+            >
+              <div className="flex justify-between items-center px-4 py-3 rounded-t-xl bg-slate-200 dark:bg-slate-700">
+                <h3 className="font-semibold text-lg">
+                  🏪 {vendorName}
+                </h3>
 
-        <span className="text-sm text-slate-700 dark:text-slate-200">
-          {list.length} item{list.length !== 1 && "s"}
-        </span>
-      </div>
+                <span className="text-sm">
+                  {list.length} item
+                  {list.length !== 1 && "s"}
+                </span>
+              </div>
 
-      <div className="p-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-100 dark:bg-slate-700/70">
-              <th className="py-2 px-2 w-6">✓</th>
-              <th className="py-2 px-2">Item</th>
-            </tr>
-          </thead>
+              <div className="p-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-700/70">
+                      <th className="py-2 px-2 w-6">✓</th>
+                      <th className="py-2 px-2">Item</th>
+                    </tr>
+                  </thead>
 
-          <tbody>
-            {list.map((item) => (
-              <tr key={item.id} className="border-t">
-                 <td className="py-2 px-2">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 accent-sky-600"
-                    checked={selectedIds.has(item.id)}
-                    onChange={() => toggleSingle(item.id)}
-                  />
-                </td>
-                <td className="py-2 px-2">{item.name}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  ))}
-</div>
-
-{/* PRINT VIEW – ONLY SELECTED ITEMS */}
-<div className="hidden print:block mt-8">
-  {Object.entries(grouped).map(([vendorName, list]: any) => {
-    const selected = list.filter((i: any) =>
-      selectedIds.has(i.id)
-    );
-
-    if (selected.length === 0) return null;
-
-    return (
-      <div
-        key={vendorName}
-        className="mb-8 border rounded-lg p-4 report-section"
-      >
-        <div className="flex justify-between mb-2">
-          <h2 className="font-bold text-lg">🏪 {vendorName}</h2>
-          <span className="text-sm text-slate-600">
-            {selected.length} item{selected.length !== 1 && "s"}
-          </span>
+                  <tbody>
+                    {list.map((item: any) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="py-2 px-2">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-sky-600"
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleSingle(item.id)}
+                          />
+                        </td>
+                        <td className="py-2 px-2">{item.name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <table className="w-full text-sm border-t">
-          <thead>
-            <tr>
-              <th className="text-left py-2 w-8">☐</th>
-              <th className="text-left py-2">Item</th>
-              <th className="text-left py-2 w-32">Cycle (days)</th>
-            </tr>
-          </thead>
+        {/* PRINT LIST */}
+        <div className="hidden print:block mt-8">
+          {Object.entries(grouped).map(([vendorName, list]: any) => {
+            const selected = list.filter((i: any) =>
+              selectedIds.has(i.id)
+            );
 
-          <tbody>
-            {selected.map((i: any) => (
-              <tr key={i.id} className="border-t">
-                <td className="py-2">☐</td>
-                <td className="py-2">{i.name}</td>
-                <td className="py-2">{i.daysLast || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            if (selected.length === 0) return null;
+
+            return (
+              <div
+                key={vendorName}
+                className="mb-8 border rounded-lg p-4"
+              >
+                <div className="flex justify-between mb-2">
+                  <h2 className="font-bold text-lg">
+                    🏪 {vendorName}
+                  </h2>
+                  <span className="text-sm">
+                    {selected.length} item
+                    {selected.length !== 1 && "s"}
+                  </span>
+                </div>
+
+                <table className="w-full text-sm border-t">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 w-8">☐</th>
+                      <th className="text-left py-2">Item</th>
+                      <th className="text-left py-2 w-32">
+                        Cycle (days)
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {selected.map((i: any) => (
+                      <tr key={i.id} className="border-t">
+                        <td className="py-2">☐</td>
+                        <td className="py-2">{i.name}</td>
+                        <td className="py-2">
+                          {i.daysLast || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    );
-  })}
-</div>
 
-        
-      </div>
-
-      {/* Advanced Analytics */}
+      {/* ADVANCED ANALYTICS */}
       <h2 className="mt-12 text-2xl font-bold no-print">
         📈 Advanced Analytics
       </h2>
@@ -453,69 +408,53 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
       ) : (
         <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl no-print">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            Detailed restock frequency, problem items, and vendor performance
-            will appear here.
+            Detailed analytics will appear here.
           </p>
         </div>
       )}
 
-      {/* PRINT-ONLY & GLOBAL STYLES */}
+      {/* PRINT STYLES */}
       <style jsx global>{`
-  @media print {
-    aside,
-    nav,
-    header,
-    .no-print,
-    button {
-      display: none !important;
-    }
+        @media print {
+          aside,
+          nav,
+          header,
+          .no-print,
+          button {
+            display: none !important;
+          }
 
-    body {
-      background: white !important;
-    }
+          body {
+            background: white !important;
+          }
 
-    main {
-      padding: 0 !important;
-    }
+          main {
+            padding: 0 !important;
+          }
 
-    .pickup-report {
-      border: none !important;
-      box-shadow: none !important;
-      max-width: 900px !important;
-      margin: 0 auto !important;
-    }
+          .pickup-report {
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 900px !important;
+            margin: 0 auto !important;
+          }
 
-    .report-section {
-      page-break-inside: avoid;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-
-    th,
-    td {
-      padding: 8px 4px;
-    }
-  }
-`}</style>
+          .report-section {
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
 
       {/* Upsell Modal */}
       {showUpsell && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 no-print">
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-xl max-w-lg w-full">
             <h2 className="text-2xl font-bold">Upgrade to Pro</h2>
-            <p className="mt-2 text-slate-600 dark:text-slate-300">
-              Unlock smarter inventory intelligence:
-            </p>
-
-            <ul className="mt-4 space-y-2 text-slate-700 dark:text-slate-200">
-              <li>✔️ Restock frequency analytics</li>
-              <li>✔️ Problem item detection</li>
-              <li>✔️ Vendor performance scoring</li>
-              <li>✔️ Exportable reports</li>
-              <li>✔️ Priority support</li>
+            <ul className="mt-4 space-y-2">
+              <li>✔️ Restock analytics</li>
+              <li>✔️ Problem item tracking</li>
+              <li>✔️ Vendor scoring</li>
+              <li>✔️ Export reports</li>
             </ul>
 
             <div className="flex gap-2 mt-6">
@@ -529,7 +468,8 @@ const grouped: Record<string, Item[]> = storeItems.reduce(
               <button
                 onClick={() => {
                   setShowUpsell(false);
-                  window.location.href = "/dashboard/settings#billing";
+                  window.location.href =
+                    "/dashboard/settings#billing";
                 }}
                 className="w-1/2 bg-amber-500 text-white rounded-lg py-2"
               >

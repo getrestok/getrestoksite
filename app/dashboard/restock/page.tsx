@@ -2,45 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../../../lib/firebase";
-import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PLANS } from "@/lib/plans";
 
 async function setReorderMethod(
+  orgId: string,
   itemId: string,
   method: "email" | "website"
 ) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
-
-  await updateDoc(doc(db, "users", uid, "items", itemId), {
-    reorderMethod: method,
-  });
+  await updateDoc(
+    doc(db, "organizations", orgId, "items", itemId),
+    { reorderMethod: method }
+  );
 }
-
-const modalBackdrop = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0 }
-};
-
-const modalPanel = {
-  hidden: { opacity: 0, scale: 0.9, y: 20 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 220, damping: 18 }
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    y: 10,
-    transition: { duration: 0.15 }
-  }
-};
 
 type ItemDoc = {
   id: string;
@@ -59,47 +41,37 @@ type VendorDoc = {
 export default function RestockPage() {
   const router = useRouter();
 
-  // ----------------------------
-// REVIEW ITEMS FROM DASHBOARD
-// ----------------------------
-const searchParams =
-  typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : null;
+  // REVIEW MODE (from dashboard)
+  const searchParams =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
 
-const reviewIds: string[] =
-  searchParams?.get("review")?.split(",").filter(Boolean) ?? [];
-
-  
-
-  
+  const reviewIds: string[] =
+    searchParams?.get("review")?.split(",").filter(Boolean) ?? [];
 
   const [user, setUser] = useState<any>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+
   const [items, setItems] = useState<ItemDoc[]>([]);
   const [vendors, setVendors] = useState<Record<string, VendorDoc>>({});
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
+
   const [showSavingsModal, setShowSavingsModal] = useState(false);
   const [showRestockConfirm, setShowRestockConfirm] = useState(false);
-const [restockingItem, setRestockingItem] = useState<ItemDoc | null>(null);
+  const [restockingItem, setRestockingItem] = useState<ItemDoc | null>(null);
 
   const isProOrHigher =
     plan === "pro" || plan === "premium" || plan === "enterprise";
 
-      
-  
-  
-    // ----------------------------
-  // AUTH + LOAD DATA
   // ----------------------------
-  
-  
+  // AUTH + ORG + PLAN + DATA
+  // ----------------------------
   useEffect(() => {
-    let unsubItems: (() => void) | undefined;
-    let unsubVendors: (() => void) | undefined;
-    let unsubUser: (() => void) | undefined;
-    let unsubOrg: (() => void) | undefined;
-
-
+    let unsubUser: any;
+    let unsubOrg: any;
+    let unsubItems: any;
+    let unsubVendors: any;
 
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
@@ -109,59 +81,59 @@ const [restockingItem, setRestockingItem] = useState<ItemDoc | null>(null);
 
       setUser(currentUser);
 
-      // USER → ORG → PLAN
-      unsubUser = onSnapshot(doc(db, "users", currentUser.uid), (userSnap) => {
-        const orgId = userSnap.data()?.orgId;
-        if (!orgId) return;
+      unsubUser = onSnapshot(
+        doc(db, "users", currentUser.uid),
+        (userSnap) => {
+          const org = userSnap.data()?.orgId;
+          if (!org) return;
 
-        unsubOrg?.();
-        unsubOrg = onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
-          const rawPlan = orgSnap.data()?.plan;
-          setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
-        });
-      });
+          setOrgId(org);
 
-      // VENDORS
-      unsubVendors = onSnapshot(
-        collection(db, "users", currentUser.uid, "vendors"),
-        (snap) => {
-          const map: Record<string, VendorDoc> = {};
-          snap.docs.forEach((d) => {
-            map[d.id] = { id: d.id, ...(d.data() as any) };
-          });
-          setVendors(map);
+          unsubOrg?.();
+          unsubOrg = onSnapshot(
+            doc(db, "organizations", org),
+            (orgSnap) => {
+              const rawPlan = orgSnap.data()?.plan;
+              setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+            }
+          );
+
+          // ORG VENDORS
+          unsubVendors?.();
+          unsubVendors = onSnapshot(
+            collection(db, "organizations", org, "vendors"),
+            (snap) => {
+              const map: Record<string, VendorDoc> = {};
+              snap.docs.forEach((d) => {
+                map[d.id] = { id: d.id, ...(d.data() as any) };
+              });
+              setVendors(map);
+            }
+          );
+
+          // ORG ITEMS
+          unsubItems?.();
+          unsubItems = onSnapshot(
+            collection(db, "organizations", org, "items"),
+            (snap) => {
+              setItems(
+                snap.docs.map((d) => ({
+                  id: d.id,
+                  ...(d.data() as any),
+                })) as ItemDoc[]
+              );
+            }
+          );
         }
       );
-
-      // ITEMS
-      unsubItems = onSnapshot(
-        collection(db, "users", currentUser.uid, "items"),
-        (snap) => {
-          const data = snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          })) as ItemDoc[];
-          setItems(data);
-        }
-      );
-      
     });
-
-    const searchParams =
-  typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : null;
-
-const reviewIds =
-  searchParams?.get("review")?.split(",") ?? [];
-
 
     return () => {
       unsubAuth();
-      unsubItems?.();
-      unsubVendors?.();
       unsubUser?.();
       unsubOrg?.();
+      unsubItems?.();
+      unsubVendors?.();
     };
   }, [router]);
 
@@ -208,7 +180,7 @@ I would like to place a restock order for:
 
 Item: ${item.name}
 
-This request was sent from Restok (getrestok.com).
+This request was sent from Restok.
 
 Thank you,
 ${user?.displayName || "—"}`;
@@ -251,21 +223,22 @@ ${user?.displayName || "—"}`;
         Reorder items using your saved vendors.
       </p>
 
-      {/* PRO+ UPSELL */}
-{isProOrHigher && (
-  <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 flex justify-between items-center">
-    <p className="text-sm text-sky-800 dark:text-sky-200">
-      💡 Want to potentially save money on your office supplies?
-    </p>
-    <button
-      onClick={() => setShowSavingsModal(true)}
-      className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
-    >
-      Learn more
-    </button>
-  </div>
-)}
+      {/* PRO+ UPSALE */}
+      {isProOrHigher && (
+        <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 flex justify-between items-center">
+          <p className="text-sm text-sky-800 dark:text-sky-200">
+            💡 Save money on supplies with Inner Space Systems
+          </p>
+          <button
+            onClick={() => setShowSavingsModal(true)}
+            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+          >
+            Learn More
+          </button>
+        </div>
+      )}
 
+      {/* ITEMS LIST */}
       <div className="mt-6 space-y-4">
         {items.map((item) => {
           const vendor = item.vendorId
@@ -273,27 +246,26 @@ ${user?.displayName || "—"}`;
             : undefined;
 
           return (
-           <div
-  key={item.id}
-  className={`p-4 rounded-xl border flex justify-between items-center transition
-    ${
-      reviewIds.includes(item.id)
-        ? "bg-amber-50 dark:bg-amber-900/30 border-amber-400"
-        : "bg-white dark:bg-slate-800 dark:border-slate-700"
-    }
-  `}
->
+            <div
+              key={item.id}
+              className={`p-4 rounded-xl border flex justify-between items-center transition
+                ${
+                  reviewIds.includes(item.id)
+                    ? "bg-amber-50 dark:bg-amber-900/30 border-amber-400"
+                    : "bg-white dark:bg-slate-800 dark:border-slate-700"
+                }`}
+            >
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                   {item.name}
                 </h3>
+
                 {reviewIds.includes(item.id) && (
-  <span className="inline-block mt-1 text-xs px-2 py-1 rounded
-    bg-amber-200 dark:bg-amber-800
-    text-amber-900 dark:text-amber-100">
-    Needs attention
-  </span>
-)}
+                  <span className="inline-block mt-1 text-xs px-2 py-1 rounded bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100">
+                    Needs attention
+                  </span>
+                )}
+
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Vendor: {vendor?.name || "Not set"}
                 </p>
@@ -312,12 +284,15 @@ ${user?.displayName || "—"}`;
                 </a>
               ) : (
                 <div className="flex items-center gap-3">
-                  {vendor.email && vendor.website && (
+                  {/* Toggle */}
+                  {vendor.email && vendor.website && orgId && (
                     <div className="flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600">
                       {(["email", "website"] as const).map((method) => (
                         <button
                           key={method}
-                          onClick={() => setReorderMethod(item.id, method)}
+                          onClick={() =>
+                            setReorderMethod(orgId, item.id, method)
+                          }
                           className={`px-3 py-1 text-xs ${
                             item.reorderMethod === method ||
                             (!item.reorderMethod && method === "email")
@@ -331,29 +306,36 @@ ${user?.displayName || "—"}`;
                     </div>
                   )}
 
+                  {/* ACTION BUTTON */}
                   {((item.reorderMethod ?? "email") === "email" &&
                   vendor.email) ? (
                     <button
-  onClick={() => {
-    window.location.href = buildVendorEmail(vendor, item);
-    setRestockingItem(item);
-    setShowRestockConfirm(true);
-  }}
-  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
->
-  Email Vendor
-</button>
+                      onClick={() => {
+                        window.location.href = buildVendorEmail(
+                          vendor,
+                          item
+                        );
+                        setRestockingItem(item);
+                        setShowRestockConfirm(true);
+                      }}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                    >
+                      Email Vendor
+                    </button>
                   ) : vendor.website ? (
                     <button
-  onClick={() => {
-    window.open(buildVendorSearchUrl(vendor, item.name)!, "_blank");
-    setRestockingItem(item);
-    setShowRestockConfirm(true);
-  }}
-  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
->
-  Search for item
-</button>
+                      onClick={() => {
+                        window.open(
+                          buildVendorSearchUrl(vendor, item.name)!,
+                          "_blank"
+                        );
+                        setRestockingItem(item);
+                        setShowRestockConfirm(true);
+                      }}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                    >
+                      Search for item
+                    </button>
                   ) : (
                     <span className="text-xs italic text-slate-400">
                       No contact info
@@ -367,92 +349,85 @@ ${user?.displayName || "—"}`;
       </div>
 
       {/* SAVINGS MODAL */}
-{showSavingsModal && (
-  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        Save on Office Supplies
-      </h2>
+      {showSavingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
+            <h2 className="text-lg font-semibold">
+              Save on Office Supplies
+            </h2>
 
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        You can potentially save money on your office supplies by switching your
-        vendor to <strong>Inner Space Systems</strong>.
-        <br />
-        <br />
-        Set ISSI as your vendor to see how much you could save!
-      </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              You could save money by switching your vendor to
+              <strong> Inner Space Systems</strong>.
+            </p>
 
-      <a
-        href="https://www.issioffice.com/office-supplies"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block text-center bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
-      >
-        Check out ISSI's website
-      </a>
+            <a
+              href="https://www.issioffice.com/office-supplies"
+              className="block text-center bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
+              target="_blank"
+            >
+              Visit ISSI
+            </a>
 
-      <button
-        onClick={() => setShowSavingsModal(false)}
-        className="w-full border border-slate-300 dark:border-slate-600 py-2 rounded-md text-slate-700 dark:text-slate-200"
-      >
-        Close
-      </button>
-    </div>
-  </div>
-)}
-{/* RESTOCK CONFIRM MODAL */}
-{showRestockConfirm && restockingItem && (
-  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        Restock item?
-      </h2>
+            <button
+              onClick={() => setShowSavingsModal(false)}
+              className="w-full border py-2 rounded-md"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Did you restock{" "}
-        <span className="font-medium text-slate-900 dark:text-slate-100">
-          {restockingItem.name}
-        </span>
-        ?
-      </p>
+      {/* RESTOCK CONFIRM */}
+      {showRestockConfirm && restockingItem && orgId && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
+            <h2 className="text-lg font-semibold">
+              Restock item?
+            </h2>
 
-      <div className="flex gap-2 pt-2">
-        <button
-          onClick={() => {
-            setShowRestockConfirm(false);
-            setRestockingItem(null);
-          }}
-          className="w-1/2 border border-slate-300 dark:border-slate-600 py-2 rounded-md"
-        >
-          Not yet
-        </button>
+            <p className="text-sm">
+              Did you restock{" "}
+              <strong>{restockingItem.name}</strong>?
+            </p>
 
-        <button
-          onClick={async () => {
-            if (!user) return;
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowRestockConfirm(false);
+                  setRestockingItem(null);
+                }}
+                className="w-1/2 border py-2 rounded-md"
+              >
+                Not yet
+              </button>
 
-            await updateDoc(
-              doc(db, "users", user.uid, "items", restockingItem.id),
-              {
-                createdAt: new Date(),
-              }
-            );
+              <button
+                onClick={async () => {
+                  await updateDoc(
+                    doc(
+                      db,
+                      "organizations",
+                      orgId,
+                      "items",
+                      restockingItem.id
+                    ),
+                    { createdAt: new Date() }
+                  );
 
-            setShowRestockConfirm(false);
-            setRestockingItem(null);
-
-            // Clean URL (remove ?itemId)
-            router.replace("/dashboard/restock");
-          }}
-          className="w-1/2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-md"
-        >
-          Yes, restocked
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
+                  setShowRestockConfirm(false);
+                  setRestockingItem(null);
+                  router.replace("/dashboard/restock");
+                }}
+                className="w-1/2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-md"
+              >
+                Yes, restocked
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.main>
   );
 }
