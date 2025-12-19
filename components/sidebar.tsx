@@ -10,6 +10,7 @@ type Plan = "basic" | "pro" | "premium" | "enterprise";
 
 export default function Sidebar() {
   const [plan, setPlan] = useState<Plan>("basic");
+  const [role, setRole] = useState<string>("member");
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
@@ -20,10 +21,15 @@ export default function Sidebar() {
 
       // 🔹 Listen to user doc
       unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
-        const orgId = userSnap.data()?.orgId;
+        const data = userSnap.data();
+        if (!data) return;
+
+        setRole(data.role || "member");
+
+        const orgId = data.orgId;
         if (!orgId) return;
 
-        // If org changes, stop previous listener
+        // cleanup old listener
         unsubOrg?.();
 
         // 🔹 Listen to org doc
@@ -81,14 +87,15 @@ export default function Sidebar() {
         <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
         <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
 
-        {(plan === "pro" || plan === "premium" || plan === "enterprise") && (
+        {/* ONLY ADMIN + PRO+ CAN SEE USERS */}
+        {(plan !== "basic" && role === "admin") && (
           <NavItem href="/dashboard/users" label="Users" emoji="👥" />
         )}
 
         <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
       </nav>
 
-      {/* Bottom section */}
+      {/* Bottom */}
       <div className="mt-auto flex flex-col gap-3 pt-6">
         {/* PLAN STATUS */}
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-sm">

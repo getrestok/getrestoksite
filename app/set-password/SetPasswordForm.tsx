@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 export default function SetPasswordForm() {
@@ -10,16 +10,57 @@ export default function SetPasswordForm() {
   const token = params.get("token");
 
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(true);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  // --------------------------
+  // Validate token on load
+  // --------------------------
+  useEffect(() => {
+    async function check() {
+      if (!token) {
+        setTokenValid(false);
+        setValidating(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/auth/validate-password-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await res.json();
+        setTokenValid(res.ok);
+      } catch {
+        setTokenValid(false);
+      }
+
+      setValidating(false);
+    }
+
+    check();
+  }, [token]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (password.length < 6)
+      return setError("Password must be at least 6 characters");
+
+    if (password !== confirm)
+      return setError("Passwords do not match");
+
     try {
-      if (!token) throw new Error("Invalid or missing token");
+      setLoading(true);
 
       const res = await fetch("/api/auth/complete-signup", {
         method: "POST",
@@ -29,15 +70,48 @@ export default function SetPasswordForm() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to set password");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to set password");
 
-      router.push("/login");
+      setSuccess(true);
+      setTimeout(() => router.push("/login"), 1200);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
     }
+  }
+
+  // --------------------------
+  // UI: Loading token check
+  // --------------------------
+  if (validating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-600">
+        Validating secure link…
+      </div>
+    );
+  }
+
+  // --------------------------
+  // UI: Invalid / expired token
+  // --------------------------
+  if (!tokenValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="bg-white p-8 rounded-xl shadow max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold">Link expired</h1>
+          <p className="text-slate-600 mt-2 text-sm">
+            This password setup link is invalid or has expired.
+          </p>
+
+          <a
+            href="https://getrestok.com/login"
+            className="inline-block mt-6 bg-sky-600 text-white px-6 py-3 rounded-lg"
+          >
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -60,6 +134,12 @@ export default function SetPasswordForm() {
           </div>
         )}
 
+        {success && (
+          <div className="mt-4 text-sm bg-green-100 text-green-700 p-2 rounded">
+            Password saved. Redirecting…
+          </div>
+        )}
+
         <input
           type="password"
           required
@@ -70,9 +150,22 @@ export default function SetPasswordForm() {
           className="mt-6 w-full border rounded-lg px-3 py-2"
         />
 
+        <input
+          type="password"
+          required
+          placeholder="Confirm password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          className="mt-3 w-full border rounded-lg px-3 py-2"
+        />
+
+        <p className="text-xs text-slate-500 mt-2">
+          Password must be at least 6 characters.
+        </p>
+
         <button
           disabled={loading}
-          className="mt-4 w-full bg-sky-600 text-white py-3 rounded-lg"
+          className="mt-4 w-full bg-sky-600 text-white py-3 rounded-lg disabled:bg-slate-400"
         >
           {loading ? "Saving..." : "Set Password"}
         </button>
