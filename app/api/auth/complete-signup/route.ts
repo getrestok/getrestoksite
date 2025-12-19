@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/firebaseAdmin";
-import { db } from "@/lib/firebaseAdmin";
+import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
@@ -10,7 +9,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing data" }, { status: 400 });
   }
 
-  const tokenRef = db.collection("passwordSetupTokens").doc(token);
+  const tokenRef = adminDb.collection("passwordSetupTokens").doc(token);
   const snap = await tokenRef.get();
 
   if (!snap.exists) {
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   // Set Firebase password
-  await auth.updateUser(data.uid, { password });
+  await adminAuth.updateUser(data.uid, { password });
 
   // Cleanup token
   await tokenRef.delete();

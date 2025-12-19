@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { db, auth as adminAuth } from "@/lib/firebaseAdmin";
+import { adminDb, adminAuth as adminAuth } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 import { Resend } from "resend";
 import crypto from "crypto";
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
 
     // 1️⃣ Load pending signup
-    const pendingRef = db.collection("pendingSignups").doc(session.id);
+    const pendingRef = adminDb.collection("pendingSignups").doc(session.id);
     const pendingSnap = await pendingRef.get();
 
     if (!pendingSnap.exists) {
@@ -64,7 +64,7 @@ if (existingUser) {
     });
 
     // 3️⃣ Create org
-    await db.collection("organizations").doc(userRecord.uid).set({
+    await adminDb.collection("organizations").doc(userRecord.uid).set({
       name: name || "My Organization",
       ownerId: userRecord.uid,
       plan,
@@ -74,7 +74,7 @@ if (existingUser) {
     });
 
     // 4️⃣ Create user profile
-    await db.collection("users").doc(userRecord.uid).set({
+    await adminDb.collection("users").doc(userRecord.uid).set({
       name,
       email,
       phone: phone || "",
@@ -86,7 +86,7 @@ if (existingUser) {
     // 5️⃣ Generate password setup token
     const token = crypto.randomBytes(32).toString("hex");
 
-    await db.collection("passwordSetupTokens").doc(token).set({
+    await adminDb.collection("passwordSetupTokens").doc(token).set({
       uid: userRecord.uid,
       email,
       createdAt: Timestamp.now(),

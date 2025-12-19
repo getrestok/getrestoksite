@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { db } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     });
 
     // ✅ Store TEMP signup data (NO PASSWORD)
-    await db.collection("pendingSignups").doc(session.id).set({
+    await adminDb.collection("pendingSignups").doc(session.id).set({
       email,
       name: name || "",
       phone: phone || "",

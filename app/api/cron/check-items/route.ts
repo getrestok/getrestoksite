@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { Resend } from "resend";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -10,7 +10,7 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET() {
-  const usersSnap = await db.collection("users").get();
+  const usersSnap = await adminDb.collection("users").get();
   const now = new Date();
 
   let emailsSent = 0;
@@ -20,14 +20,14 @@ export async function GET() {
     if (!user.email || !user.orgId) continue;
 
     // 🔒 Get org
-    const orgSnap = await db
+    const orgSnap = await adminDb
       .collection("organizations")
       .doc(user.orgId)
       .get();
 
     
 
-    const itemsSnap = await db
+    const itemsSnap = await adminDb
       .collection("users")
       .doc(userDoc.id)
       .collection("items")
