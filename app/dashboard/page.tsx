@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -42,63 +47,91 @@ export default function DashboardHome() {
     dueToday: 0,
   });
 
+  const [orgId, setOrgId] = useState<string | null>(null);
+
+  // loading flags so we can show spinner
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingOrg, setLoadingOrg] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const isLoading = loadingUser || loadingOrg || loadingItems;
+
   // -------------------------
-  // AUTH
+  // AUTH → USER → ORG → PLAN + ITEMS
   // -------------------------
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      if (!u) return router.push("/login");
+    let unsubOrg: (() => void) | null = null;
+    let unsubItems: (() => void) | null = null;
+
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        setLoadingUser(false);
+        router.push("/login");
+        return;
+      }
 
       setUser(u);
+      setLoadingUser(false);
 
-      const snap = await getDoc(doc(db, "users", u.uid));
-      if (snap.exists()) setProfile(snap.data());
-    });
-  }, [router]);
+      // Load user profile to get orgId
+      const userSnap = await getDoc(doc(db, "users", u.uid));
+      if (!userSnap.exists()) {
+        setProfile(null);
+        setLoadingOrg(false);
+        setLoadingItems(false);
+        return;
+      }
 
-  // -------------------------
-  // PLAN
-  // -------------------------
-  useEffect(() => {
-    if (!user) return;
+      const userData = userSnap.data();
+      setProfile(userData);
 
-    return onSnapshot(doc(db, "users", user.uid), (snap) => {
-      const orgId = snap.data()?.orgId;
-      if (!orgId) return;
+      const org = userData.orgId as string | undefined;
+      if (!org) {
+        setOrgId(null);
+        setLoadingOrg(false);
+        setLoadingItems(false);
+        return;
+      }
 
-      onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
-        const p = orgSnap.data()?.plan;
+      setOrgId(org);
+
+      // Listen to org for plan
+      unsubOrg?.();
+      unsubOrg = onSnapshot(doc(db, "organizations", org), (orgSnap) => {
+        const p = orgSnap.data()?.plan as Plan | undefined;
         setPlan(
           p === "pro" || p === "premium" || p === "enterprise"
             ? p
             : "basic"
         );
+        setLoadingOrg(false);
       });
+
+      // Listen to ORG ITEMS (✅ FIXED PATH)
+      unsubItems?.();
+      unsubItems = onSnapshot(
+        collection(db, "organizations", org, "items"),
+        (snap) => {
+          const data = snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          })) as ItemDoc[];
+
+          setItems(data);
+          calculateStats(data);
+          setLoadingItems(false);
+        }
+      );
     });
-  }, [user]);
+
+    return () => {
+      unsubAuth();
+      unsubOrg?.();
+      unsubItems?.();
+    };
+  }, [router]);
 
   // -------------------------
-  // ITEMS
-  // -------------------------
-  useEffect(() => {
-    if (!user) return;
-
-    return onSnapshot(
-      collection(db, "users", user.uid, "items"),
-      (snap) => {
-        const data = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        })) as ItemDoc[];
-
-        setItems(data);
-        calculateStats(data);
-      }
-    );
-  }, [user]);
-
-  // -------------------------
-  // ATTENTION POPUP (FIXED)
+  // ATTENTION POPUP
   // -------------------------
   useEffect(() => {
     if (!user) return;
@@ -109,7 +142,7 @@ export default function DashboardHome() {
     if (!isProOrHigher) return;
 
     const key = `restok_attention_dismissed_${user.uid}`;
-    if (sessionStorage.getItem(key)) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem(key)) return;
 
     const needsAttentionItems = items.filter(needsAttention);
     if (needsAttentionItems.length === 0) return;
@@ -129,6 +162,7 @@ export default function DashboardHome() {
       (Date.now() - created.getTime()) / 86400000
     );
 
+    // 3 days or less remaining
     return item.daysLast - diffDays <= 3;
   }
 
@@ -165,15 +199,38 @@ export default function DashboardHome() {
       const diff = Math.floor(
         (Date.now() - created.getTime()) / 86400000
       );
-      return { name: item.name, daysLeft: Math.max(item.daysLast - diff, 0) };
+      return {
+        name: item.name,
+        daysLeft: Math.max(item.daysLast - diff, 0),
+      };
     })
-    .filter(Boolean);
+    .filter(Boolean) as { name: string; daysLeft: number }[];
 
   const displayName =
     profile?.name || user?.displayName || user?.email || "there";
 
   // -------------------------
-  // UI
+  // LOADING UI
+  // -------------------------
+  if (isLoading) {
+    return (
+      <motion.main
+        className="flex-1 p-10 flex items-center justify-center"
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-slate-300 border-t-sky-500 animate-spin" />
+          <p className="text-sm text-slate-500">
+            Loading your dashboard…
+          </p>
+        </div>
+      </motion.main>
+    );
+  }
+
+  // -------------------------
+  // MAIN UI
   // -------------------------
   return (
     <motion.main
@@ -182,28 +239,34 @@ export default function DashboardHome() {
       animate={{ opacity: 1 }}
     >
       <h1 className="text-3xl font-bold">Dashboard</h1>
-      <p className="mt-2 text-slate-600">
+      <p className="mt-2 text-slate-600 dark:text-slate-400">
         Welcome back, {displayName}!
       </p>
 
       {/* STATS */}
       <div className="grid md:grid-cols-3 gap-6 mt-10">
-        <Stat label="Total Items" value={stats.totalItems} />
-        <Stat label="Running Low" value={stats.runningLow} color="amber" />
-        <Stat label="Due Today" value={stats.dueToday} color="red" />
+        <Stat label="Total Items" value={stats.totalItems} tone="default" />
+        <Stat label="Running Low" value={stats.runningLow} tone="amber" />
+        <Stat label="Due Today" value={stats.dueToday} tone="red" />
       </div>
 
       {/* GRAPH */}
       <div className="mt-10 bg-white dark:bg-slate-800 p-6 rounded-xl">
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={graphData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Line dataKey="daysLeft" stroke="#0ea5e9" strokeWidth={3} />
-          </LineChart>
-        </ResponsiveContainer>
+        {graphData.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Add items to see your restock timeline.
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={graphData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Line dataKey="daysLeft" stroke="#0ea5e9" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* ATTENTION MODAL */}
@@ -224,7 +287,10 @@ export default function DashboardHome() {
 
             <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
               {attentionItems.map((i) => (
-                <div key={i.id} className="p-2 bg-slate-100 dark:bg-slate-700 rounded">
+                <div
+                  key={i.id}
+                  className="p-2 bg-slate-100 dark:bg-slate-700 rounded"
+                >
                   {i.name}
                 </div>
               ))}
@@ -233,10 +299,12 @@ export default function DashboardHome() {
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => {
-                  sessionStorage.setItem(
-                    `restok_attention_dismissed_${user.uid}`,
-                    "true"
-                  );
+                  if (typeof window !== "undefined" && user) {
+                    sessionStorage.setItem(
+                      `restok_attention_dismissed_${user.uid}`,
+                      "true"
+                    );
+                  }
                   setShowAttentionModal(false);
                 }}
                 className="w-1/2 border rounded py-2"
@@ -246,11 +314,13 @@ export default function DashboardHome() {
 
               <button
                 onClick={() => {
-                  sessionStorage.setItem(
-                    `restok_attention_dismissed_${user.uid}`,
-                    "true"
-                  );
-                  const ids = attentionItems.map(i => i.id).join(",");
+                  if (typeof window !== "undefined" && user) {
+                    sessionStorage.setItem(
+                      `restok_attention_dismissed_${user.uid}`,
+                      "true"
+                    );
+                  }
+                  const ids = attentionItems.map((i) => i.id).join(",");
                   router.push(`/dashboard/restock?review=${ids}`);
                 }}
                 className="w-1/2 bg-sky-600 text-white rounded py-2"
@@ -265,14 +335,27 @@ export default function DashboardHome() {
   );
 }
 
-// Small stat card
-function Stat({ label, value, color }: any) {
+// Small stat card with Tailwind-safe colors
+function Stat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "amber" | "red";
+}) {
+  let colorClass =
+    "text-slate-500"; // default text color if needed elsewhere
+
+  if (tone === "amber") colorClass = "text-amber-500";
+  if (tone === "red") colorClass = "text-red-500";
+  if (tone === "default") colorClass = "text-sky-500";
+
   return (
     <div className="p-6 bg-white dark:bg-slate-800 rounded-xl">
-      <h3 className="text-slate-500">{label}</h3>
-      <p className={`text-4xl font-bold text-${color ?? "slate"}-500`}>
-        {value}
-      </p>
+      <h3 className="text-slate-500 dark:text-slate-400">{label}</h3>
+      <p className={`text-4xl font-bold ${colorClass}`}>{value}</p>
     </div>
   );
 }

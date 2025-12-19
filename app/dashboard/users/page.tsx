@@ -19,13 +19,16 @@ export default function UsersPage() {
 
   const [user, setUser] = useState<any>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
+
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
   const [role, setRole] =
     useState<"owner" | "admin" | "member">("member");
-  const [roleLoaded, setRoleLoaded] = useState(false);
 
+  const [planLoaded, setPlanLoaded] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+
+  const [initializing, setInitializing] = useState(true);
 
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState("");
@@ -34,41 +37,45 @@ export default function UsersPage() {
   // AUTH + ORG + ROLE + PLAN
   // ----------------------
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    let unsubUser: any;
+    let unsubOrg: any;
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
 
       setUser(u);
 
-      onSnapshot(doc(db, "users", u.uid), (snap) => {
+      unsubUser = onSnapshot(doc(db, "users", u.uid), (snap) => {
         const data = snap.data();
         if (!data?.orgId) return;
 
         setOrgId(data.orgId);
         setRole(data.role || "member");
-        setRoleLoaded(true);
 
-        onSnapshot(
+        unsubOrg?.();
+        unsubOrg = onSnapshot(
           doc(db, "organizations", data.orgId),
           (orgSnap) => {
             const p = orgSnap.data()?.plan;
-            setPlan(p && p in PLANS ? p : "basic");
+            setPlan(
+              p === "pro" || p === "premium" || p === "enterprise"
+                ? p
+                : "basic"
+            );
+            setPlanLoaded(true);
           }
         );
+
+        setInitializing(false);
       });
     });
+
+    return () => {
+      unsubAuth();
+      unsubUser?.();
+      unsubOrg?.();
+    };
   }, [router]);
-
-  // ----------------------
-  // SECURITY PAGE GUARD
-  // ----------------------
-  useEffect(() => {
-    if (!roleLoaded) return;
-
-    // Members are blocked entirely
-    if (role === "member") {
-      router.replace("/dashboard");
-    }
-  }, [role, roleLoaded, router]);
 
   // ----------------------
   // LOAD MEMBERS
@@ -82,23 +89,24 @@ export default function UsersPage() {
         setMembers(
           snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
         );
-        setLoading(false);
+        setLoadingMembers(false);
       }
     );
   }, [orgId]);
 
   // ----------------------
-  // PLAN LIMITS
+  // SEAT LIMITS
   // ----------------------
   const memberLimit =
-    plan === "pro" ? 5 : plan === "premium" ? Infinity : 1;
+    plan === "pro"
+      ? 5
+      : plan === "premium" || plan === "enterprise"
+      ? Infinity
+      : 1;
 
   const atLimit =
     memberLimit !== Infinity && members.length >= memberLimit;
 
-  // ----------------------
-  // COUNT ADMINS
-  // ----------------------
   const adminCount = members.filter(
     (m) => m.role === "admin" || m.role === "owner"
   ).length;
@@ -108,7 +116,7 @@ export default function UsersPage() {
     adminCount <= 1;
 
   // ----------------------
-  // INVITE USER
+  // ACTIONS
   // ----------------------
   async function createUser(e: any) {
     e.preventDefault();
@@ -149,8 +157,7 @@ export default function UsersPage() {
   }
 
   async function transferOwnership(uid: string) {
-    if (!confirm("Transfer organization ownership?"))
-      return;
+    if (!confirm("Transfer organization ownership?")) return;
 
     const token = await auth.currentUser?.getIdToken();
 
@@ -192,6 +199,17 @@ export default function UsersPage() {
     if (data.error) alert(data.error);
   }
 
+  // ----------------------
+  // LOADING
+  // ----------------------
+  if (initializing || !planLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin h-12 w-12 border-4 border-sky-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <motion.main
       className="p-10 flex-1 max-w-5xl mx-auto"
@@ -208,8 +226,22 @@ export default function UsersPage() {
         Role: <strong>{role}</strong>
       </div>
 
-      {/* ---------- BASIC PLAN UPSALE ---------- */}
-      {plan === "basic" && (
+      {/* MEMBER VIEW */}
+      {role === "member" && (
+        <div className="mt-6 p-6 rounded-xl border bg-white dark:bg-slate-800 max-w-xl">
+          <h2 className="text-xl font-semibold">
+            Managed by Your Organization
+          </h2>
+
+          <p className="text-slate-600 dark:text-slate-400 mt-2">
+            User management is handled by your organization
+            administrator.
+          </p>
+        </div>
+      )}
+
+      {/* BASIC PLAN */}
+      {plan === "basic" && role !== "member" && (
         <div className="mt-6 p-6 rounded-xl border bg-white dark:bg-slate-800 max-w-xl">
           <h2 className="text-xl font-semibold">
             Add More Users
@@ -217,7 +249,7 @@ export default function UsersPage() {
 
           <p className="text-slate-600 dark:text-slate-400 mt-2">
             Your current plan only supports one user. Upgrade to
-            unlock team accounts, roles, and permissions.
+            unlock team accounts.
           </p>
 
           <button
@@ -232,8 +264,8 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* ---------- ONLY SHOW MANAGEMENT IF NOT BASIC ---------- */}
-      {plan !== "basic" && (
+      {/* PRO+ */}
+      {plan !== "basic" && role !== "member" && (
         <>
           <div className="mt-3 text-sm">
             {memberLimit === Infinity
@@ -241,7 +273,6 @@ export default function UsersPage() {
               : `${members.length} / ${memberLimit} seats`}
           </div>
 
-          {/* Header */}
           <div className="mt-6 flex justify-between items-center">
             <h2 className="text-xl font-semibold">
               Organization Members
@@ -262,19 +293,16 @@ export default function UsersPage() {
             )}
           </div>
 
-          {/* Members */}
           <div className="mt-6 space-y-3">
-            {(loading || !roleLoaded) && <p>Loading…</p>}
+            {loadingMembers && <p>Loading…</p>}
 
             {members.map((m) => (
               <div
                 key={m.id}
-                className="p-4 rounded-xl border flex justify-between items-center"
+                className="p-4 rounded-xl border bg-white dark:bg-slate-800 flex justify-between items-center"
               >
                 <div>
-                  <div className="font-medium">
-                    {m.email}
-                  </div>
+                  <div className="font-medium">{m.email}</div>
                   <div className="text-xs text-slate-500">
                     {m.role}
                   </div>
@@ -289,7 +317,7 @@ export default function UsersPage() {
                         }
                         className="px-3 py-1 bg-amber-600 text-white rounded"
                       >
-                        Transfer Ownership
+                        Transfer
                       </button>
                     )}
 
@@ -352,15 +380,12 @@ export default function UsersPage() {
                   className="input"
                   placeholder="User email"
                   value={email}
-                  onChange={(e) =>
-                    setEmail(e.target.value)
-                  }
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
 
                 <p className="text-xs text-slate-500">
-                  The user will receive an invite email to
-                  create their account.
+                  The user will receive an invite email.
                 </p>
 
                 <div className="flex gap-2">

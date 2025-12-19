@@ -58,11 +58,18 @@ export default function ReportsPage() {
   const [filter, setFilter] = useState<"low" | "due" | "all">("low");
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [plan, setPlan] = useState<Plan>("basic");
-  const [showUpsell, setShowUpsell] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showUpsell, setShowUpsell] = useState(false);
 
+  const [planLoaded, setPlanLoaded] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const loading = !planLoaded || !dataLoaded;
+
+  // -------------------------
   // AUTH + ORG + PLAN
+  // -------------------------
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
@@ -82,12 +89,15 @@ export default function ReportsPage() {
               ? p
               : "basic"
           );
+          setPlanLoaded(true);
         });
       });
     });
   }, [router]);
 
-  // ORG ITEMS
+  // -------------------------
+  // ITEMS
+  // -------------------------
   useEffect(() => {
     if (!orgId) return;
 
@@ -100,11 +110,14 @@ export default function ReportsPage() {
             ...(d.data() as any),
           })) as Item[]
         );
+        setDataLoaded(true);
       }
     );
   }, [orgId]);
 
-  // ORG VENDORS
+  // -------------------------
+  // VENDORS
+  // -------------------------
   useEffect(() => {
     if (!orgId) return;
 
@@ -120,7 +133,9 @@ export default function ReportsPage() {
     );
   }, [orgId]);
 
+  // -------------------------
   // FILTERING
+  // -------------------------
   useEffect(() => {
     if (!items.length) {
       setFilteredItems([]);
@@ -131,7 +146,7 @@ export default function ReportsPage() {
     const now = Date.now();
 
     function daysLeft(item: Item) {
-      if (!item.createdAt) return 999;
+      if (!item.createdAt?.toDate) return 999;
       const created = item.createdAt.toDate();
       const diff = Math.floor((now - created.getTime()) / 86400000);
       return item.daysLast - diff;
@@ -151,14 +166,15 @@ export default function ReportsPage() {
     setFilteredItems(result);
   }, [items, filter]);
 
-  // Only vendors with physical stores
+  // -------------------------
+  // GROUP STORE PICKUP LIST
+  // -------------------------
   const storeItems = filteredItems.filter((item) => {
     if (!item.vendorId) return false;
     const v = vendors[item.vendorId];
     return v?.hasPhysicalStore === true;
   });
 
-  // Group store items by vendor
   const grouped = storeItems.reduce((acc: any, item) => {
     const vendorName =
       (item.vendorId && vendors[item.vendorId]?.name) ||
@@ -169,7 +185,9 @@ export default function ReportsPage() {
     return acc;
   }, {});
 
-  // Select logic
+  // -------------------------
+  // SELECT LOGIC
+  // -------------------------
   const allVisibleIds = filteredItems.map((i) => i.id);
   const allVisibleSelected =
     allVisibleIds.length > 0 &&
@@ -190,6 +208,29 @@ export default function ReportsPage() {
     setSelectedIds(next);
   }
 
+  // -------------------------
+  // LOADING
+  // -------------------------
+  if (loading) {
+    return (
+      <motion.main
+        className="p-10 flex-1 flex items-center justify-center"
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-slate-300 border-t-sky-500 animate-spin" />
+          <p className="text-sm text-slate-500">
+            Preparing your reports…
+          </p>
+        </div>
+      </motion.main>
+    );
+  }
+
+  // -------------------------
+  // UI
+  // -------------------------
   return (
     <motion.main
       className="flex-1 p-10"

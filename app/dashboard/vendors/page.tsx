@@ -88,6 +88,7 @@ export default function VendorsPage() {
         setOrgId(data.orgId);
         setOrgLoaded(true);
 
+        unsubVendors?.();
         unsubVendors = onSnapshot(
           collection(db, "organizations", data.orgId, "vendors"),
           (snap) => {
@@ -276,7 +277,7 @@ export default function VendorsPage() {
         ))}
       </div>
 
-      {/* MODALS BELOW (unchanged) */}
+      {/* ADD / EDIT MODAL */}
       {showModal && (
         <motion.div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -348,6 +349,7 @@ export default function VendorsPage() {
         </motion.div>
       )}
 
+      {/* DELETE CONFIRM */}
       {deleteVendor && (
         <motion.div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"

@@ -81,19 +81,23 @@ export default function ItemsPage() {
 
         setOrgId(org);
 
-        onSnapshot(doc(db, "organizations", org), (orgSnap) => {
-          const rawPlan = orgSnap.data()?.plan;
-          setPlan(
-            rawPlan === "pro" ||
-            rawPlan === "premium" ||
-            rawPlan === "enterprise"
-              ? rawPlan
-              : "basic"
-          );
-          setPlanLoaded(true);
-        });
+        // PLAN
+        const unsubPlan = onSnapshot(
+          doc(db, "organizations", org),
+          (orgSnap) => {
+            const rawPlan = orgSnap.data()?.plan;
+            setPlan(
+              rawPlan === "pro" ||
+              rawPlan === "premium" ||
+              rawPlan === "enterprise"
+                ? rawPlan
+                : "basic"
+            );
+            setPlanLoaded(true);
+          }
+        );
 
-        // Load vendors
+        // LOAD VENDORS
         unsubVendors = onSnapshot(
           collection(db, "organizations", org, "vendors"),
           (snap) => {
@@ -103,7 +107,7 @@ export default function ItemsPage() {
           }
         );
 
-        // Load items
+        // LOAD ITEMS
         unsubItems = onSnapshot(
           collection(db, "organizations", org, "items"),
           (snap) => {
@@ -131,7 +135,9 @@ export default function ItemsPage() {
     if (!item.createdAt?.toDate) return null;
 
     const created = item.createdAt.toDate();
-    const diffDays = Math.floor((Date.now() - created.getTime()) / 86400000);
+    const diffDays = Math.floor(
+      (Date.now() - created.getTime()) / 86400000
+    );
     const daysLeft = item.daysLast - diffDays;
 
     if (daysLeft <= 0)
@@ -152,7 +158,9 @@ export default function ItemsPage() {
     if (!item.createdAt?.toDate) return 0;
 
     const created = item.createdAt.toDate();
-    const diffDays = Math.floor((Date.now() - created.getTime()) / 86400000);
+    const diffDays = Math.floor(
+      (Date.now() - created.getTime()) / 86400000
+    );
     const left = Math.max(item.daysLast - diffDays, 0);
     return Math.min(100, Math.max(0, (left / item.daysLast) * 100));
   }
@@ -227,13 +235,22 @@ export default function ItemsPage() {
   const atLimit = itemLimit !== Infinity && items.length >= itemLimit;
 
   // ---------------------------
-  // LOADING UI
+  // LOADING OVERLAY
   // ---------------------------
   if (loadingPage) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-screen">
-        <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
-      </div>
+      <motion.main
+        className="p-10 flex-1 flex items-center justify-center"
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-slate-300 border-t-sky-500 animate-spin" />
+          <p className="text-sm text-slate-500">
+            Loading your items…
+          </p>
+        </div>
+      </motion.main>
     );
   }
 
@@ -293,8 +310,11 @@ export default function ItemsPage() {
                 <h3 className="font-semibold">{item.name}</h3>
 
                 {status && (
-                  <span className={`mt-1 inline-block px-2 py-1 text-xs rounded text-white ${status.color}`}>
-                    {status.label} • {status.daysLeft} days left
+                  <span
+                    className={`mt-1 inline-block px-2 py-1 text-xs rounded text-white ${status.color}`}
+                  >
+                    {status.label} • {status.daysLeft} days
+                    left
                   </span>
                 )}
 
@@ -347,8 +367,162 @@ export default function ItemsPage() {
         })}
       </div>
 
-      {/* ===== MODALS BELOW (unchanged) ===== */}
-      {/* Add / Edit / Delete remain same as your version */}
+      {/* -------- ADD MODAL -------- */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form
+            onSubmit={handleAdd}
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+          >
+            <h2 className="text-xl font-semibold">Add Item</h2>
+
+            <input
+              className="input"
+              placeholder="Item name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+
+            <input
+              className="input"
+              type="number"
+              placeholder="Days it lasts"
+              value={daysLast}
+              onChange={(e) => setDaysLast(e.target.value)}
+              required
+            />
+
+            <select
+              className="input"
+              value={vendorId}
+              onChange={(e) => setVendorId(e.target.value)}
+            >
+              <option value="">Select vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="w-1/2 border p-3 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="w-1/2 bg-sky-600 text-white p-3 rounded"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* -------- EDIT MODAL -------- */}
+      {showEdit && editItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form
+            onSubmit={handleEdit}
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+          >
+            <h2 className="text-xl font-semibold">Edit Item</h2>
+
+            <input
+              className="input"
+              value={editItem.name}
+              onChange={(e) =>
+                setEditItem({ ...editItem, name: e.target.value })
+              }
+            />
+
+            <input
+              className="input"
+              type="number"
+              value={editItem.daysLast}
+              onChange={(e) =>
+                setEditItem({
+                  ...editItem,
+                  daysLast: Number(e.target.value),
+                })
+              }
+            />
+
+            <select
+              className="input"
+              value={editItem.vendorId || ""}
+              onChange={(e) =>
+                setEditItem({
+                  ...editItem,
+                  vendorId: e.target.value,
+                })
+              }
+            >
+              <option value="">Select vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEdit(false)}
+                className="w-1/2 border p-3 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="w-1/2 bg-blue-600 text-white p-3 rounded"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* -------- DELETE MODAL -------- */}
+      {showDelete && deleteItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4">
+            <h2 className="text-lg font-semibold">Delete item?</h2>
+
+            <p>
+              Are you sure you want to delete{" "}
+              <strong>{deleteItem.name}</strong>? This cannot be
+              undone.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDelete(false)}
+                className="w-1/2 border p-3 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDeleteConfirmed}
+                className="w-1/2 bg-red-600 text-white p-3 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.main>
   );
 }

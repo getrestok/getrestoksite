@@ -15,22 +15,10 @@ import { doc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
 
 export const PLANS = {
-  basic: {
-    name: "Basic",
-    description: "Manual tracking with limited alerts",
-  },
-  pro: {
-    name: "Pro",
-    description: "Automated alerts and smart restock reminders",
-  },
-  premium: {
-    name: "Premium",
-    description: "Advanced automation and reporting",
-  },
-  enterprise: {
-    name: "Enterprise",
-    description: "Custom workflows and priority support",
-  },
+  basic: { name: "Basic", description: "Manual tracking with limited alerts" },
+  pro: { name: "Pro", description: "Automated alerts and smart reminders" },
+  premium: { name: "Premium", description: "Advanced automation + reporting" },
+  enterprise: { name: "Enterprise", description: "Custom + priority support" },
 };
 
 export default function SettingsPage() {
@@ -41,8 +29,6 @@ export default function SettingsPage() {
 
   // Profile
   const [name, setName] = useState("");
-
-  
 
   // Preferences
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -56,27 +42,29 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
 
-  // Delete account
+  // Delete
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const [error, setError] = useState<string | null>(null);
 
   // Billing
-const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
-const [orgId, setOrgId] = useState<string | null>(null);
+  const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
 
-  // AUTH
+  // ---------------- AUTH ----------------
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
       setUser(u);
       setLoadingUser(false);
     });
+
     return () => unsub();
   }, [router]);
 
-  // LOAD PROFILE
+  // ---------------- PROFILE ----------------
   useEffect(() => {
     if (!user) return;
 
@@ -91,41 +79,49 @@ const [orgId, setOrgId] = useState<string | null>(null);
     return () => unsub();
   }, [user]);
 
-
+  // ---------------- ORG + PLAN ----------------
   useEffect(() => {
-  // wait so the page can render first
-  const hash = window.location.hash;
+    if (!user) return;
 
-  if (!hash) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      const data = snap.data();
+      if (!data?.orgId) return;
 
-  const el = document.querySelector(hash);
-  if (!el) return;
+      setOrgId(data.orgId);
 
-  setTimeout(() => {
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 200);
-}, []);
-  
+      const orgRef = doc(db, "organizations", data.orgId);
+      const unsubOrg = onSnapshot(orgRef, (orgSnap) => {
+        const rawPlan = orgSnap.data()?.plan;
+        setPlan(
+          rawPlan === "pro" ||
+          rawPlan === "premium" ||
+          rawPlan === "enterprise"
+            ? rawPlan
+            : "basic"
+        );
+        setPlanLoaded(true);
+      });
 
-  useEffect(() => {
-  if (!user) return;
-
-  const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
-    const data = snap.data();
-    if (!data?.orgId) return;
-
-    setOrgId(data.orgId);
-
-    const orgRef = doc(db, "organizations", data.orgId);
-    onSnapshot(orgRef, (orgSnap) => {
-      const rawPlan = orgSnap.data()?.plan;
-      setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+      return () => unsubOrg();
     });
-  });
 
-  return () => unsub();
-}, [user]);
+    return () => unsub();
+  }, [user]);
 
+  // Scroll to #billing when linked
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const el = document.querySelector(hash);
+    if (!el) return;
+
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+  }, []);
+
+  // ---------------- ACTIONS ----------------
   async function handleSaveProfile(e: any) {
     e.preventDefault();
     if (!user) return;
@@ -198,21 +194,29 @@ const [orgId, setOrgId] = useState<string | null>(null);
 
       await deleteDoc(doc(db, "users", user.uid));
       await deleteUser(user);
-
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to delete account.");
     }
   }
 
-  if (loadingUser) {
+  // ---------------- LOADING ----------------
+  if (loadingUser || !planLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        Loading settings…
-      </div>
+      <motion.main
+        className="flex-1 min-h-screen flex items-center justify-center text-slate-500"
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
+          Loading settings…
+        </div>
+      </motion.main>
     );
   }
 
+  // ---------------- UI ----------------
   return (
     <motion.main
       className="flex-1 p-10 text-slate-800 dark:text-slate-100"
@@ -224,8 +228,8 @@ const [orgId, setOrgId] = useState<string | null>(null);
 
       <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">
         Signed in as{" "}
-        <span className="font-medium text-slate-900 dark:text-slate-100">
-          {user.displayName || "User"}
+        <span className="font-medium">
+          {user.displayName || name || "User"}
         </span>{" "}
         • {user.email}
       </div>
@@ -248,11 +252,7 @@ const [orgId, setOrgId] = useState<string | null>(null);
             placeholder="Full name"
           />
 
-          <input
-            readOnly
-            className="input"
-            value={user.email}
-          />
+          <input readOnly className="input" value={user.email} />
 
           <button className="px-4 py-2 bg-sky-600 text-white rounded-lg">
             {savingProfile ? "Saving…" : "Save Profile"}
@@ -260,7 +260,7 @@ const [orgId, setOrgId] = useState<string | null>(null);
         </form>
       </section>
 
-      {/* PREFERENCES */}
+      {/* PREFS */}
       <section className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl">
         <h2 className="text-xl font-semibold">Preferences</h2>
 
@@ -269,13 +269,13 @@ const [orgId, setOrgId] = useState<string | null>(null);
             label: "Email Notifications",
             value: emailNotifications,
             setter: setEmailNotifications,
-            desc: "Receive email alerts for low or due items.",
+            desc: "Receive email alerts for low or due items."
           },{
             label: "Low Stock Alerts",
             value: lowStockAlerts,
             setter: setLowStockAlerts,
-            desc: "Show warnings when items are nearly empty.",
-          }].map((opt) => (
+            desc: "Show warnings when items are nearly empty."
+          }].map(opt => (
             <div key={opt.label} className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium">{opt.label}</div>
@@ -285,11 +285,11 @@ const [orgId, setOrgId] = useState<string | null>(null);
                 <input
                   type="checkbox"
                   checked={opt.value}
-                  onChange={(e) => opt.setter(e.target.checked)}
+                  onChange={e => opt.setter(e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-300 rounded-full peer-checked:bg-sky-600"></div>
-                <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5" />
               </label>
             </div>
           ))}
@@ -304,32 +304,32 @@ const [orgId, setOrgId] = useState<string | null>(null);
       </section>
 
       {/* BILLING */}
-<section id="billing" className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl">
-  <h2 className="text-xl font-semibold">Billing</h2>
+      <section
+        id="billing"
+        className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl"
+      >
+        <h2 className="text-xl font-semibold">Billing</h2>
 
-  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-    Manage your subscription, payment method, and invoices.
-  </p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+          Current Plan: <strong>{PLANS[plan].name}</strong>
+        </p>
 
-  <button
-    onClick={async () => {
-      const res = await fetch("/api/stripe/create-portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
-      });
+        <button
+          onClick={async () => {
+            const res = await fetch("/api/stripe/create-portal", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orgId }),
+            });
 
-      const data = await res.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    }}
-    className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
-  >
-    Manage Billing
-  </button>
-</section>
+            const data = await res.json();
+            if (data?.url) window.location.href = data.url;
+          }}
+          className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+        >
+          Manage Billing
+        </button>
+      </section>
 
       {/* SECURITY */}
       <section className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-2xl">
@@ -365,7 +365,7 @@ const [orgId, setOrgId] = useState<string | null>(null);
           )}
         </form>
 
-        {/* DANGER ZONE */}
+        {/* Danger Zone */}
         <div className="mt-6 border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 rounded-lg">
           <div className="font-semibold text-red-600 mb-2">Danger Zone</div>
 
@@ -397,6 +397,4 @@ const [orgId, setOrgId] = useState<string | null>(null);
       </section>
     </motion.main>
   );
-
-  
 }

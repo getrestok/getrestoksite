@@ -41,7 +41,7 @@ type VendorDoc = {
 export default function RestockPage() {
   const router = useRouter();
 
-  // REVIEW MODE
+  // REVIEW MODE (?review=ID,ID,… from Dashboard)
   const searchParams =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search)
@@ -64,7 +64,7 @@ export default function RestockPage() {
   const isProOrHigher =
     plan === "pro" || plan === "premium" || plan === "enterprise";
 
-  // ------------- NEW: LOADING FLAGS -------------
+  // ---------- LOADING FLAGS ----------
   const [planLoaded, setPlanLoaded] = useState(false);
   const [itemsLoaded, setItemsLoaded] = useState(false);
   const [vendorsLoaded, setVendorsLoaded] = useState(false);
@@ -101,7 +101,13 @@ export default function RestockPage() {
             doc(db, "organizations", org),
             (orgSnap) => {
               const rawPlan = orgSnap.data()?.plan;
-              setPlan(rawPlan && rawPlan in PLANS ? rawPlan : "basic");
+              setPlan(
+                rawPlan === "pro" ||
+                rawPlan === "premium" ||
+                rawPlan === "enterprise"
+                  ? rawPlan
+                  : "basic"
+              );
               setPlanLoaded(true);
             }
           );
@@ -177,9 +183,16 @@ export default function RestockPage() {
     if (host.includes("costco"))
       return `https://www.costco.com/CatalogSearch?keyword=${q}`;
 
-    return `https://www.google.com/search?q=site:${encodeURIComponent(
-      new URL(site).hostname
-    )}+${q}`;
+    // Fallback: search vendor site via Google
+    try {
+      const hostName = new URL(site).hostname;
+      return `https://www.google.com/search?q=site:${encodeURIComponent(
+        hostName
+      )}+${q}`;
+    } catch {
+      // If URL() fails, just do a plain search
+      return `https://www.google.com/search?q=${q}`;
+    }
   }
 
   function buildInnerSpaceEmail(item: ItemDoc) {
@@ -221,9 +234,18 @@ ${user?.displayName || user?.email || "—"}`;
   // ---------------------------------
   if (loadingPage) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-screen">
-        <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
-      </div>
+      <motion.main
+        className="p-10 flex-1 flex items-center justify-center min-h-screen"
+        initial={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
+          <p className="text-sm text-slate-500">
+            Getting your restock list ready…
+          </p>
+        </div>
+      </motion.main>
     );
   }
 
@@ -258,6 +280,12 @@ ${user?.displayName || user?.email || "—"}`;
 
       {/* ITEMS LIST */}
       <div className="mt-6 space-y-4">
+        {items.length === 0 && (
+          <div className="p-8 rounded-xl border text-center text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
+            No items yet. Add items first, then come back here to restock them.
+          </div>
+        )}
+
         {items.map((item) => {
           const vendor = item.vendorId
             ? vendors[item.vendorId]
@@ -367,9 +395,9 @@ ${user?.displayName || user?.email || "—"}`;
       {/* SAVINGS MODAL */}
       {showSavingsModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
             <h2 className="text-lg font-semibold">Save on Office Supplies</h2>
-            <p className="text-sm">
+            <p className="text-sm text-slate-700 dark:text-slate-300">
               You could save money by switching your vendor to
               <strong> Inner Space Systems</strong>.
             </p>
@@ -395,10 +423,10 @@ ${user?.displayName || user?.email || "—"}`;
       {/* RESTOCK CONFIRM */}
       {showRestockConfirm && restockingItem && orgId && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
             <h2 className="text-lg font-semibold">Restock item?</h2>
 
-            <p className="text-sm">
+            <p className="text-sm text-slate-700 dark:text-slate-300">
               Did you restock{" "}
               <strong>{restockingItem.name}</strong>?
             </p>
