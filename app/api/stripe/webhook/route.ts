@@ -185,7 +185,7 @@ function buildPasswordEmail(setupUrl: string) {
 <body style="background:#f1f5f9;padding:40px;font-family:Arial,sans-serif;">
   <table align="center" width="100%" style="max-width:520px;background:#fff;border-radius:14px;padding:32px;">
     <tr><td align="center">
-      <img src="https://getrestok.com/logo.svg" width="48" />
+      <img src="https://getrestok.com/logo.png" width="48" />
       <h1>Set your password</h1>
       <p>Your Restok account has been created.</p>
       <a href="${setupUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:14px 22px;border-radius:10px;text-decoration:none;">

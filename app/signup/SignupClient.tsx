@@ -13,10 +13,11 @@ export default function SignupPage() {
 // PLAN SELECTION (FIXED)
 // -----------------------------
 const rawPlan = params.get("plan");
+const planKey = rawPlan ? rawPlan.toLowerCase().trim() : null;
 
 const initialPlan: keyof typeof PLANS =
-  rawPlan && rawPlan in PLANS
-    ? (rawPlan as keyof typeof PLANS)
+  planKey && planKey in PLANS
+    ? (planKey as keyof typeof PLANS)
     : "basic";
 
 const [selectedPlan, setSelectedPlan] =
