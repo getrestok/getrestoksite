@@ -41,7 +41,7 @@ type VendorDoc = {
 export default function RestockPage() {
   const router = useRouter();
 
-  // REVIEW MODE (from dashboard)
+  // REVIEW MODE (dashboard sends ?review=ID,ID…)
   const searchParams =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search)
@@ -64,9 +64,9 @@ export default function RestockPage() {
   const isProOrHigher =
     plan === "pro" || plan === "premium" || plan === "enterprise";
 
-  // ----------------------------
-  // AUTH + ORG + PLAN + DATA
-  // ----------------------------
+  // ---------------------------------
+  // AUTH → USER → ORG → PLAN + DATA
+  // ---------------------------------
   useEffect(() => {
     let unsubUser: any;
     let unsubOrg: any;
@@ -89,6 +89,7 @@ export default function RestockPage() {
 
           setOrgId(org);
 
+          // PLAN
           unsubOrg?.();
           unsubOrg = onSnapshot(
             doc(db, "organizations", org),
@@ -137,9 +138,9 @@ export default function RestockPage() {
     };
   }, [router]);
 
-  // ----------------------------
+  // ---------------------------------
   // HELPERS
-  // ----------------------------
+  // ---------------------------------
   function isInnerSpaceVendor(v?: VendorDoc) {
     if (!v?.name) return false;
     const n = v.name.toLowerCase();
@@ -183,7 +184,7 @@ Item: ${item.name}
 This request was sent from Restok.
 
 Thank you,
-${user?.displayName || "—"}`;
+${user?.displayName || user?.email || "—"}`;
 
     return `mailto:sales@issioffice.com?subject=${encodeURIComponent(
       subject
@@ -199,34 +200,31 @@ I would like to place a restock order for:
 Item: ${item.name}
 
 Thank you,
-${user?.displayName || "—"}`;
+${user?.displayName || user?.email || "—"}`;
 
     return `mailto:${vendor.email}?subject=${encodeURIComponent(
       subject
     )}&body=${encodeURIComponent(body)}`;
   }
 
-  // ----------------------------
+  // ---------------------------------
   // UI
-  // ----------------------------
+  // ---------------------------------
   return (
     <motion.main
       className="p-10 flex-1 max-w-5xl mx-auto"
       initial={{ opacity: 0.5 }}
       animate={{ opacity: 1 }}
     >
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-        Restock
-      </h1>
-
+      <h1 className="text-3xl font-bold">Restock</h1>
       <p className="mt-2 text-slate-600 dark:text-slate-400">
         Reorder items using your saved vendors.
       </p>
 
-      {/* PRO+ UPSALE */}
+      {/* PRO SAVINGS BANNER */}
       {isProOrHigher && (
-        <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 flex justify-between items-center">
-          <p className="text-sm text-sky-800 dark:text-sky-200">
+        <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border flex justify-between items-center">
+          <p className="text-sm">
             💡 Save money on supplies with Inner Space Systems
           </p>
           <button
@@ -252,21 +250,19 @@ ${user?.displayName || "—"}`;
                 ${
                   reviewIds.includes(item.id)
                     ? "bg-amber-50 dark:bg-amber-900/30 border-amber-400"
-                    : "bg-white dark:bg-slate-800 dark:border-slate-700"
+                    : "bg-white dark:bg-slate-800"
                 }`}
             >
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                  {item.name}
-                </h3>
+                <h3 className="font-semibold">{item.name}</h3>
 
                 {reviewIds.includes(item.id) && (
-                  <span className="inline-block mt-1 text-xs px-2 py-1 rounded bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100">
+                  <span className="inline-block mt-1 text-xs px-2 py-1 rounded bg-amber-200">
                     Needs attention
                   </span>
                 )}
 
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-500">
                   Vendor: {vendor?.name || "Not set"}
                 </p>
               </div>
@@ -284,9 +280,9 @@ ${user?.displayName || "—"}`;
                 </a>
               ) : (
                 <div className="flex items-center gap-3">
-                  {/* Toggle */}
+                  {/* EMAIL vs WEBSITE toggle */}
                   {vendor.email && vendor.website && orgId && (
-                    <div className="flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600">
+                    <div className="flex rounded-md overflow-hidden border">
                       {(["email", "website"] as const).map((method) => (
                         <button
                           key={method}
@@ -297,7 +293,7 @@ ${user?.displayName || "—"}`;
                             item.reorderMethod === method ||
                             (!item.reorderMethod && method === "email")
                               ? "bg-sky-600 text-white"
-                              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                              : "bg-white dark:bg-slate-800"
                           }`}
                         >
                           {method === "email" ? "Email" : "Website"}
@@ -334,7 +330,7 @@ ${user?.displayName || "—"}`;
                       }}
                       className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
                     >
-                      Search for item
+                      Search Site
                     </button>
                   ) : (
                     <span className="text-xs italic text-slate-400">
@@ -351,12 +347,9 @@ ${user?.displayName || "—"}`;
       {/* SAVINGS MODAL */}
       {showSavingsModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
-            <h2 className="text-lg font-semibold">
-              Save on Office Supplies
-            </h2>
-
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
+            <h2 className="text-lg font-semibold">Save on Office Supplies</h2>
+            <p className="text-sm">
               You could save money by switching your vendor to
               <strong> Inner Space Systems</strong>.
             </p>
@@ -382,10 +375,8 @@ ${user?.displayName || "—"}`;
       {/* RESTOCK CONFIRM */}
       {showRestockConfirm && restockingItem && orgId && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
-            <h2 className="text-lg font-semibold">
-              Restock item?
-            </h2>
+          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-4">
+            <h2 className="text-lg font-semibold">Restock item?</h2>
 
             <p className="text-sm">
               Did you restock{" "}

@@ -11,37 +11,41 @@ type Plan = "basic" | "pro" | "premium" | "enterprise";
 export default function Sidebar() {
   const [plan, setPlan] = useState<Plan>("basic");
 
-  // 🔁 Listen for plan + org changes
   useEffect(() => {
+    let unsubUser: (() => void) | null = null;
+    let unsubOrg: (() => void) | null = null;
+
     const unsubAuth = auth.onAuthStateChanged((user) => {
       if (!user) return;
 
-      const unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
+      // 🔹 Listen to user doc
+      unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
         const orgId = userSnap.data()?.orgId;
         if (!orgId) return;
 
-        const unsubOrg = onSnapshot(
-          doc(db, "organizations", orgId),
-          (orgSnap) => {
-            const rawPlan = orgSnap.data()?.plan;
+        // If org changes, stop previous listener
+        unsubOrg?.();
 
-            setPlan(
-              rawPlan === "pro" ||
-              rawPlan === "premium" ||
-              rawPlan === "enterprise"
-                ? rawPlan
-                : "basic"
-            );
-          }
-        );
+        // 🔹 Listen to org doc
+        unsubOrg = onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
 
-        return () => unsubOrg();
+          setPlan(
+            rawPlan === "pro" ||
+            rawPlan === "premium" ||
+            rawPlan === "enterprise"
+              ? rawPlan
+              : "basic"
+          );
+        });
       });
-
-      return () => unsubUser();
     });
 
-    return () => unsubAuth();
+    return () => {
+      unsubAuth();
+      unsubUser?.();
+      unsubOrg?.();
+    };
   }, []);
 
   return (
@@ -75,15 +79,12 @@ export default function Sidebar() {
         <NavItem href="/dashboard/items" label="Items" emoji="📦" />
         <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
         <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
-
-        {/* ⭐ NEW REPORTS PAGE */}
         <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
 
         {(plan === "pro" || plan === "premium" || plan === "enterprise") && (
-  <NavItem href="/dashboard/users" label="Users" emoji="👥" />
-)}
+          <NavItem href="/dashboard/users" label="Users" emoji="👥" />
+        )}
 
-        
         <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
       </nav>
 
@@ -138,7 +139,6 @@ export default function Sidebar() {
   );
 }
 
-// 🔹 Reusable Nav Button
 function NavItem({
   href,
   emoji,
