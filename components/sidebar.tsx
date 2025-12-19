@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import ThemeToggle from "./ThemeToggle";
 import { auth, db } from "../lib/firebase";
 import { useEffect, useState } from "react";
@@ -175,20 +175,20 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* SUPPORT MODAL */}
+      <AnimatePresence>
 {showSupport && userInfo && (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
+    exit={{ opacity: 0 }}                     // <-- fade out backdrop
     className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    onClick={() => setShowSupport(false)}   // <-- CLICK OUTSIDE CLOSES
+    onClick={() => setShowSupport(false)}
   >
     <motion.form
-      onClick={(e) => e.stopPropagation()}  // <-- PREVENTS CLOSE WHEN CLICKING INSIDE
+      onClick={(e) => e.stopPropagation()}
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+      exit={{ opacity: 0, scale: 0.9, y: 10 }} // <-- popup close animation
       transition={{ type: "spring", stiffness: 240, damping: 20 }}
       onSubmit={async (e) => {
         e.preventDefault();
@@ -218,12 +218,7 @@ export default function Sidebar() {
         <div><strong>Plan:</strong> {userInfo?.plan}</div>
       </div>
 
-      <input
-        name="subject"
-        placeholder="Subject"
-        required
-        className="input mb-3"
-      />
+      <input name="subject" placeholder="Subject" required className="input mb-3" />
 
       <textarea
         name="message"
@@ -232,10 +227,7 @@ export default function Sidebar() {
         className="input h-36 mb-4"
       />
 
-      <label className="text-sm mb-2 block">
-        Screenshot / file (optional)
-      </label>
-
+      <label className="text-sm mb-2 block">Screenshot / file (optional)</label>
       <input
         type="file"
         accept="image/*,.pdf,.txt"
@@ -262,6 +254,7 @@ export default function Sidebar() {
     </motion.form>
   </motion.div>
 )}
+</AnimatePresence>
     </>
   );
 }
