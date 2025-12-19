@@ -1,28 +1,33 @@
 import { NextResponse } from "next/server";
-import { auth as firebaseAuth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase-admin/auth";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { cookies } from "next/headers";
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
-    const token = (await cookieStore).get("__session")?.value;
+    const cookieStore = await cookies();
+const token = cookieStore.get("__session")?.value;
 
-    if (!token) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
+    if (!token)
+      return NextResponse.json({ error: "Not logged in" }, { status: 401 });
 
     const decoded = await getAuth().verifyIdToken(token);
     const uid = decoded.uid;
 
-    const userSnap = await getDoc(doc(db, "users", uid));
+    const userSnap = await adminDb.collection("users").doc(uid).get();
     const user = userSnap.data();
 
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user)
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     let orgData = null;
 
     if (user.orgId) {
-      const orgSnap = await getDoc(doc(db, "organizations", user.orgId));
+      const orgSnap = await adminDb
+        .collection("organizations")
+        .doc(user.orgId)
+        .get();
+
       orgData = orgSnap.data();
     }
 
@@ -31,7 +36,7 @@ export async function GET() {
       email: decoded.email,
       name: user.name || decoded.name || "User",
       orgId: user.orgId || null,
-      orgName: orgData?.name || "No Organization",
+      orgName: orgData?.name || null,
       plan: orgData?.plan || "basic",
     });
   } catch (err) {
