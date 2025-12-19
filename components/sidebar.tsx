@@ -165,13 +165,26 @@ export default function Sidebar() {
           </button>
 
           <motion.button
-            onClick={() => auth.signOut()}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
-          >
-            Log Out
-          </motion.button>
+  onClick={async () => {
+    try {
+      await auth.signOut();
+
+      await fetch("/api/auth/logout", {
+        method: "POST"
+      });
+
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout failed", err);
+      alert("Failed to log out");
+    }
+  }}
+  whileHover={{ scale: 1.03 }}
+  whileTap={{ scale: 0.97 }}
+  className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
+>
+  Log Out
+</motion.button>
         </div>
       </aside>
 

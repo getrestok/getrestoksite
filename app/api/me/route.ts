@@ -1,34 +1,38 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
-import { adminDb } from "@/lib/firebaseAdmin";
 import { cookies } from "next/headers";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
-const token = cookieStore.get("__session")?.value;
+    const token = cookieStore.get("__session")?.value;
 
     if (!token)
-      return NextResponse.json({ error: "Not logged in" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Not logged in" },
+        { status: 401 }
+      );
 
     const decoded = await getAuth().verifyIdToken(token);
     const uid = decoded.uid;
 
-    const userSnap = await adminDb.collection("users").doc(uid).get();
+    const userSnap = await getDoc(doc(db, "users", uid));
     const user = userSnap.data();
 
     if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
 
-    let orgData = null;
-
+    let org = null;
     if (user.orgId) {
-      const orgSnap = await adminDb
-        .collection("organizations")
-        .doc(user.orgId)
-        .get();
-
-      orgData = orgSnap.data();
+      const orgSnap = await getDoc(
+        doc(db, "organizations", user.orgId)
+      );
+      org = orgSnap.data();
     }
 
     return NextResponse.json({
@@ -36,8 +40,8 @@ const token = cookieStore.get("__session")?.value;
       email: decoded.email,
       name: user.name || decoded.name || "User",
       orgId: user.orgId || null,
-      orgName: orgData?.name || null,
-      plan: orgData?.plan || "basic",
+      orgName: org?.name || "No Organization",
+      plan: org?.plan || "basic",
     });
   } catch (err) {
     console.error("ME API ERROR", err);
