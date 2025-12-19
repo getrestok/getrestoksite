@@ -22,19 +22,15 @@ export default function UsersPage() {
   const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
   const [role, setRole] =
     useState<"owner" | "admin" | "member">("member");
-    const [roleLoaded, setRoleLoaded] = useState(false);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordless, setPasswordless] = useState(false);
 
-  // -----------------------
   // AUTH + ORG + ROLE + PLAN
-  // -----------------------
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       if (!u) return router.push("/login");
@@ -57,45 +53,37 @@ export default function UsersPage() {
     });
   }, [router]);
 
-  // -----------------------
   // SECURITY PAGE GUARD
-  // -----------------------
   useEffect(() => {
-  if (!roleLoaded) return;
+    if (!roleLoaded) return;
+    if (role !== "owner" && role !== "admin") {
+      router.replace("/dashboard");
+    }
+  }, [role, roleLoaded, router]);
 
-  if (role !== "owner" && role !== "admin") {
-    console.warn("❌ Non-admin blocked from Users page");
-    router.replace("/dashboard");
-  }
-}, [role, roleLoaded, router]);
-
-  // -----------------------
   // LOAD MEMBERS
-  // -----------------------
   useEffect(() => {
     if (!orgId) return;
 
     return onSnapshot(
       query(collection(db, "users"), where("orgId", "==", orgId)),
       (snap) => {
-        setMembers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+        setMembers(
+          snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
+        );
         setLoading(false);
       }
     );
   }, [orgId]);
 
-  // -----------------------
   // PLAN SEAT LIMITS
-  // -----------------------
   const memberLimit =
     plan === "pro" ? 5 : plan === "premium" ? Infinity : 1;
 
   const atLimit =
     memberLimit !== Infinity && members.length >= memberLimit;
 
-  // -----------------------
   // COUNT ADMINS
-  // -----------------------
   const adminCount = members.filter(
     (m) => m.role === "admin" || m.role === "owner"
   ).length;
@@ -103,44 +91,30 @@ export default function UsersPage() {
   const isLastAdmin = (m: any) =>
     (m.role === "admin" || m.role === "owner") && adminCount <= 1;
 
-  // -----------------------
-  // CREATE USER / INVITE USER
-  // -----------------------
+  // CREATE USER (Invite Flow Only)
   async function createUser(e: any) {
     e.preventDefault();
     if (!orgId) return;
 
-    const currentUser = auth.currentUser;
-    const token = await currentUser?.getIdToken();
+    const token = await auth.currentUser?.getIdToken();
 
-    const res = await fetch(
-      passwordless ? "/api/org/invite-user" : "/api/org/create-user",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          orgId,
-        }),
-      }
-    );
+    const res = await fetch("/api/org/invite-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ email, orgId }),
+    });
 
     const data = await res.json();
     if (data.error) return alert(data.error);
 
     setEmail("");
-    setPassword("");
     setShowAdd(false);
-    setPasswordless(false);
   }
 
-  // -----------------------
   // UPDATE ROLE
-  // -----------------------
   async function updateRole(uid: string, newRole: string) {
     const token = await auth.currentUser?.getIdToken();
 
@@ -157,9 +131,7 @@ export default function UsersPage() {
     if (data.error) alert(data.error);
   }
 
-  // -----------------------
   // TRANSFER OWNERSHIP
-  // -----------------------
   async function transferOwnership(uid: string) {
     if (!confirm("Transfer organization ownership? This cannot be undone."))
       return;
@@ -179,9 +151,7 @@ export default function UsersPage() {
     if (data.error) alert(data.error);
   }
 
-  // -----------------------
   // DELETE USER
-  // -----------------------
   async function deleteUser(uid: string, m: any) {
     if (uid === user?.uid) return alert("You cannot remove yourself.");
     if (m.role === "owner") return alert("You cannot remove the owner.");
@@ -259,7 +229,6 @@ export default function UsersPage() {
             </div>
 
             <div className="flex gap-2">
-              {/* OWNER ACTIONS */}
               {role === "owner" && m.role !== "owner" && (
                 <button
                   onClick={() => transferOwnership(m.id)}
@@ -269,7 +238,6 @@ export default function UsersPage() {
                 </button>
               )}
 
-              {/* ADMIN ACTIONS */}
               {(role === "owner" || role === "admin") &&
                 m.role !== "owner" && (
                   <>
@@ -310,14 +278,14 @@ export default function UsersPage() {
         ))}
       </div>
 
-      {/* ADD USER MODAL */}
+      {/* ADD USER (Invite Only) */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
           <form
             onSubmit={createUser}
             className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
           >
-            <h2 className="text-lg font-semibold">Add New User</h2>
+            <h2 className="text-lg font-semibold">Invite New User</h2>
 
             <input
               className="input"
@@ -327,25 +295,10 @@ export default function UsersPage() {
               required
             />
 
-            {!passwordless && (
-              <input
-                className="input"
-                placeholder="Temporary password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            )}
-
-            <label className="flex gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={passwordless}
-                onChange={() => setPasswordless(!passwordless)}
-              />
-              Create user without password (send setup link)
-            </label>
+            <p className="text-xs text-slate-500">
+              The user will receive an email to set their password and
+              activate their account.
+            </p>
 
             <div className="flex gap-2">
               <button
@@ -360,7 +313,7 @@ export default function UsersPage() {
                 type="submit"
                 className="w-1/2 bg-sky-600 text-white p-3 rounded"
               >
-                Create
+                Send Invite
               </button>
             </div>
           </form>
