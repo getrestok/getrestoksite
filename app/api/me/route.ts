@@ -1,38 +1,59 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { cookies } from "next/headers";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { headers, cookies } from "next/headers";
+
+export const runtime = "nodejs"; // IMPORTANT for Firebase Admin
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("__session")?.value;
+    let idToken: string | undefined;
 
-    if (!token)
+    // 1️⃣ Headers (await required now)
+    const headersList = await headers();
+    const authHeader = headersList.get("authorization");
+
+    if (authHeader?.startsWith("Bearer ")) {
+      idToken = authHeader.replace("Bearer ", "");
+    }
+
+    // 2️⃣ Cookie fallback
+    if (!idToken) {
+      const cookieStore = await cookies();
+      const cookie = cookieStore.get("__session");
+      idToken = cookie?.value;
+    }
+
+    if (!idToken) {
       return NextResponse.json(
-        { error: "Not logged in" },
+        { error: "Unauthorized" },
         { status: 401 }
       );
+    }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    // Verify Firebase token
+    const decoded = await getAuth().verifyIdToken(idToken);
     const uid = decoded.uid;
 
+    // Load Firestore user
     const userSnap = await getDoc(doc(db, "users", uid));
     const user = userSnap.data();
 
-    if (!user)
+    if (!user) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
+    }
 
-    let org = null;
+    // Load org if exists
+    let orgData: any = null;
     if (user.orgId) {
       const orgSnap = await getDoc(
         doc(db, "organizations", user.orgId)
       );
-      org = orgSnap.data();
+      orgData = orgSnap.data();
     }
 
     return NextResponse.json({
@@ -40,8 +61,8 @@ export async function GET() {
       email: decoded.email,
       name: user.name || decoded.name || "User",
       orgId: user.orgId || null,
-      orgName: org?.name || "No Organization",
-      plan: org?.plan || "basic",
+      orgName: orgData?.name || "No Organization",
+      plan: orgData?.plan || "basic",
     });
   } catch (err) {
     console.error("ME API ERROR", err);

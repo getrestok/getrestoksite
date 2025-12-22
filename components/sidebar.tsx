@@ -29,11 +29,20 @@ export default function Sidebar() {
         return;
       }
 
-      // Support metadata
-      fetch("/api/me")
-        .then((r) => r.json())
-        .then((d) => setUserInfo(d))
-        .catch(() => null);
+      auth.onAuthStateChanged(async (user) => {
+  if (!user) return;
+
+  const token = await user.getIdToken();
+
+  const res = await fetch("/api/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+  if (res.ok) setUserInfo(data);
+});
 
       unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
         const data = userSnap.data();
