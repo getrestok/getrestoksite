@@ -1,0 +1,430 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { auth, db } from "@/lib/firebase";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+
+type LocationDoc = {
+  id: string;
+  name: string;
+  isDepartment?: boolean;
+  address?: string | null;
+  description?: string | null;
+  createdAt?: any;
+};
+
+export default function LocationsPage() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<any>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<any[]>([]);
+
+  const [plan, setPlan] = useState<"basic" | "pro" | "premium" | "enterprise">(
+    "basic"
+  );
+
+  const [orgLoaded, setOrgLoaded] = useState(false);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
+
+  const loading = !orgLoaded || !locationsLoaded;
+
+  // Modal
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<LocationDoc | null>(null);
+
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [description, setDescription] = useState("");
+  const [isDepartment, setIsDepartment] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<LocationDoc | null>(null);
+
+  // --------------------------
+  // AUTH + ORG + PLAN + LOCATIONS
+  // --------------------------
+  useEffect(() => {
+    let unsubOrg: any;
+    let unsubLocations: any;
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (!u) return router.push("/login");
+      setUser(u);
+
+      unsubOrg = onSnapshot(doc(db, "users", u.uid), (snap) => {
+        const data = snap.data();
+        if (!data?.orgId) return;
+
+        setOrgId(data.orgId);
+        setOrgLoaded(true);
+
+        // Watch org → plan
+        const orgRef = doc(db, "organizations", data.orgId);
+        onSnapshot(orgRef, (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
+          setPlan(
+            rawPlan === "premium" || rawPlan === "enterprise"
+              ? rawPlan
+              : rawPlan === "pro"
+              ? "pro"
+              : "basic"
+          );
+        });
+
+        // Watch locations
+        unsubLocations = onSnapshot(
+          collection(db, "organizations", data.orgId, "locations"),
+          (snap) => {
+            setLocations(
+              snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
+            );
+            setLocationsLoaded(true);
+          }
+        );
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      unsubOrg?.();
+      unsubLocations?.();
+    };
+  }, [router]);
+
+  // --------------------------
+  // SAVE LOCATION
+  // --------------------------
+  async function handleSave(e: any) {
+    e.preventDefault();
+    if (!orgId) return;
+
+    const payload = {
+      name: name.trim(),
+      address: address.trim() || null,
+      description: description.trim() || null,
+      isDepartment,
+      updatedAt: serverTimestamp()
+    };
+
+    try {
+      if (editing) {
+        await updateDoc(
+          doc(db, "organizations", orgId, "locations", editing.id),
+          payload
+        );
+      } else {
+        await addDoc(collection(db, "organizations", orgId, "locations"), {
+          ...payload,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      resetModal();
+    } catch (err) {
+      console.error("Failed to save location", err);
+      alert("Failed to save. Check console.");
+    }
+  }
+
+  function resetModal() {
+    setShowModal(false);
+    setEditing(null);
+    setName("");
+    setAddress("");
+    setDescription("");
+    setIsDepartment(false);
+  }
+
+  // --------------------------
+  // DELETE SAFELY
+  // --------------------------
+  async function handleDelete(loc: LocationDoc) {
+    if (!orgId) return;
+
+    const itemsSnap = await getDocs(
+      query(
+        collection(db, "organizations", orgId, "items"),
+        where("locationId", "==", loc.id)
+      )
+    );
+
+    if (!itemsSnap.empty) {
+      alert("This location is currently assigned to one or more items.");
+      return;
+    }
+
+    await deleteDoc(doc(db, "organizations", orgId, "locations", loc.id));
+    setDeleteTarget(null);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-full min-h-screen">
+        <div className="animate-spin h-12 w-12 border-4 border-sky-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Premium unlock flag
+  const isPremium =
+    plan === "premium" || plan === "enterprise";
+
+  const atLimit =
+    !isPremium && locations.length >= 1;
+
+  return (
+    <motion.main
+      className="p-10 flex-1 max-w-5xl mx-auto"
+      initial={{ opacity: 0.4 }}
+      animate={{ opacity: 1 }}
+    >
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Locations</h1>
+
+          <p className="text-slate-600 dark:text-slate-400 mt-2 max-w-xl">
+            Locations can represent either <strong>departments</strong> (like
+            “Accounting” or “Warehouse”) or <strong>physical locations</strong>
+            (like “Main Office” or a street address). Use them however your
+            organization needs.
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            if (atLimit) {
+              alert(
+                "Multiple locations are only available on Premium & Enterprise plans."
+              );
+              return;
+            }
+            setShowModal(true);
+          }}
+          className={`px-4 py-2 rounded-lg text-white ${
+            atLimit
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-sky-600 hover:bg-sky-700"
+          }`}
+        >
+          + Add Location
+        </button>
+      </div>
+
+      {/* UPGRADE NOTICE */}
+      {!isPremium && locations.length >= 1 && (
+        <div className="mt-4 p-4 rounded-xl border bg-amber-50 dark:bg-slate-800 dark:border-slate-700">
+          <strong>Want to add more locations?</strong>
+          <p className="text-sm mt-1 text-slate-600 dark:text-slate-400">
+            Upgrade to Premium or Enterprise to unlock unlimited locations.
+          </p>
+
+          <button
+            className="mt-3 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded"
+            onClick={() =>
+              (window.location.href =
+                "/dashboard/settings#billing")
+            }
+          >
+            Upgrade Plan
+          </button>
+        </div>
+      )}
+
+      {/* LIST */}
+      <div className="mt-6 space-y-3">
+        {locations.length === 0 && (
+          <div className="p-10 border border-dashed rounded-xl text-center text-slate-500 dark:text-slate-400">
+            No locations yet.
+          </div>
+        )}
+
+        {locations.map((l, i) => (
+          <motion.div
+            key={l.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="p-4 rounded-xl border bg-white dark:bg-slate-800 flex justify-between items-center"
+          >
+            <div>
+              <h3 className="font-semibold">{l.name}</h3>
+
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                {l.isDepartment ? "Department" : "Physical Location"}
+              </div>
+
+              {l.address && (
+                <div className="text-sm mt-1">📍 {l.address}</div>
+              )}
+
+              {l.description && (
+                <div className="text-xs mt-1 text-slate-500">
+                  {l.description}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setEditing(l);
+                  setName(l.name);
+                  setAddress(l.address || "");
+                  setDescription(l.description || "");
+                  setIsDepartment(l.isDepartment || false);
+                  setShowModal(true);
+                }}
+                className="px-3 py-1.5 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-sm"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => setDeleteTarget(l)}
+                className="px-3 py-1.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* ADD / EDIT MODAL */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowModal(false)}
+          >
+            <motion.form
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+              onSubmit={handleSave}
+              className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md shadow-2xl border"
+            >
+              <h2 className="text-xl font-semibold mb-4">
+                {editing ? "Edit Location" : "Add Location"}
+              </h2>
+
+              <input
+                required
+                className="input mb-3"
+                placeholder="Location / Department Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+
+              <label className="flex items-center gap-2 text-sm mb-3">
+                <input
+                  type="checkbox"
+                  checked={isDepartment}
+                  onChange={(e) => setIsDepartment(e.target.checked)}
+                />
+                This is a department (not a physical address)
+              </label>
+
+              {!isDepartment && (
+                <input
+                  className="input mb-3"
+                  placeholder="Address (optional)"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              )}
+
+              <textarea
+                className="input h-28 mb-4"
+                placeholder="Description / notes (optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={resetModal}
+                  className="w-1/2 border p-3 rounded"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE MODAL */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+              className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-sm shadow-2xl border"
+            >
+              <h2 className="text-lg font-semibold">Delete location?</h2>
+
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                This cannot be undone.
+              </p>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="w-1/2 border p-3 rounded"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => handleDelete(deleteTarget)}
+                  className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.main>
+  );
+}

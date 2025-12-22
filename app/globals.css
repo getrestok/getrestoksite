@@ -89,9 +89,7 @@ button {
     dark:placeholder-slate-500;
 }
 
-:root {
-  color-scheme: light dark;
-}
+
 
   @media print {
     aside,

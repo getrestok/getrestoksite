@@ -108,15 +108,16 @@ export default function Sidebar() {
         </motion.h1>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-2 text-slate-700 dark:text-slate-200">
-          <NavItem href="/dashboard" label="Dashboard" emoji="📊" />
-          <NavItem href="/dashboard/items" label="Items" emoji="📦" />
-          <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
-          <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
-          <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
-          <NavItem href="/dashboard/users" label="Users" emoji="👥" />
-          <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
-        </nav>
+<nav className="flex flex-col gap-2 text-slate-700 dark:text-slate-200">
+  <NavItem href="/dashboard" label="Dashboard" emoji="📊" />
+  <NavItem href="/dashboard/items" label="Items" emoji="📦" />
+  <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
+  <NavItem href="/dashboard/locations" label="Locations" emoji="📍" />
+  <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
+  <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
+  <NavItem href="/dashboard/users" label="Users" emoji="👥" />
+  <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
+</nav>
 
         {/* ---------- Bottom ---------- */}
         <div className="mt-auto flex flex-col gap-3 pt-6">
