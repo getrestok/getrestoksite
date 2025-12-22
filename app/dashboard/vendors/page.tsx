@@ -27,6 +27,10 @@ type VendorDoc = {
   createdAt?: any;
 };
 
+export const metadata = {
+  title: "Vendors",
+};
+
 export default function VendorsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);

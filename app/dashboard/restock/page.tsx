@@ -38,6 +38,10 @@ type VendorDoc = {
   website?: string | null;
 };
 
+export const metadata = {
+  title: "Restock",
+};
+
 export default function RestockPage() {
   const router = useRouter();
 

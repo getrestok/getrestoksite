@@ -47,6 +47,10 @@ function LockedBlur({ children, onClick }: any) {
   );
 }
 
+export const metadata = {
+  title: "Reports",
+};
+
 export default function ReportsPage() {
   const router = useRouter();
 

@@ -27,6 +27,10 @@ type LocationDoc = {
   createdAt?: any;
 };
 
+export const metadata = {
+  title: "Locations",
+};
+
 export default function LocationsPage() {
   const router = useRouter();
 
