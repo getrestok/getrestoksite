@@ -14,9 +14,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PLANS } from "@/lib/plans";
 
-export const metadata = {
-  title: "Users",
-};
+
 
 export default function UsersPage() {
   const router = useRouter();

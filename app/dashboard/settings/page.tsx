@@ -21,9 +21,7 @@ export const PLANS = {
   enterprise: { name: "Enterprise", description: "Custom + priority support" },
 };
 
-export const metadata = {
-  title: "Settings",
-};
+
 
 export default function SettingsPage() {
   const router = useRouter();

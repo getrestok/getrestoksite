@@ -30,9 +30,7 @@ type VendorDoc = {
   name: string;
 };
 
-export const metadata = {
-  title: "Items",
-};
+
 
 export default function ItemsPage() {
   const router = useRouter();
