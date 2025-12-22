@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     `;
 
     await resend.emails.send({
-      from: "Restok Support <support@yourdomain.com>",
+      from: "Restok Support <support@getrestok.com>",
       to: SUPPORT_TO,
       bcc: BCC,
       subject: `Support — ${subject}`,
