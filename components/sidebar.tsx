@@ -18,32 +18,32 @@ export default function Sidebar() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
 
-  // Load user + plan
+  // Load user + org + plan + /api/me
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
     let unsubOrg: (() => void) | null = null;
 
-    const unsubAuth = auth.onAuthStateChanged((user) => {
+    const unsubAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
         return;
       }
 
-      auth.onAuthStateChanged(async (user) => {
-  if (!user) return;
+      // -------- fetch /api/me safely --------
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  const token = await user.getIdToken();
+        const data = await res.json();
+        if (res.ok) setUserInfo(data);
+        else console.warn("ME API failed:", data);
+      } catch (err) {
+        console.error("Failed to fetch /api/me", err);
+      }
 
-  const res = await fetch("/api/me", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await res.json();
-  if (res.ok) setUserInfo(data);
-});
-
+      // -------- firestore listeners --------
       unsubUser = onSnapshot(doc(db, "users", user.uid), (userSnap) => {
         const data = userSnap.data();
         if (!data) {
@@ -61,19 +61,22 @@ export default function Sidebar() {
 
         unsubOrg?.();
 
-        unsubOrg = onSnapshot(doc(db, "organizations", orgId), (orgSnap) => {
-          const rawPlan = orgSnap.data()?.plan;
+        unsubOrg = onSnapshot(
+          doc(db, "organizations", orgId),
+          (orgSnap) => {
+            const rawPlan = orgSnap.data()?.plan;
 
-          setPlan(
-            rawPlan === "pro" ||
-              rawPlan === "premium" ||
-              rawPlan === "enterprise"
-              ? rawPlan
-              : "basic"
-          );
+            setPlan(
+              rawPlan === "pro" ||
+                rawPlan === "premium" ||
+                rawPlan === "enterprise"
+                ? rawPlan
+                : "basic"
+            );
 
-          setLoading(false);
-        });
+            setLoading(false);
+          }
+        );
       });
     });
 
@@ -86,20 +89,13 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* SIDEBAR */}
-      <aside
-        className="
-        hidden md:flex
-        fixed
-        left-0 top-0
-        h-screen
-        w-64
+      {/* ---------- SIDEBAR ---------- */}
+      <aside className="
+        hidden md:flex fixed left-0 top-0 h-screen w-64
         bg-white dark:bg-slate-900
         border-r border-slate-200 dark:border-slate-700
-        p-6
-        flex-col
-      "
-      >
+        p-6 flex-col
+      ">
         {/* Logo */}
         <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
 
@@ -118,24 +114,19 @@ export default function Sidebar() {
           <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
           <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
           <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
-
-          {/* ALWAYS SHOW USERS */}
           <NavItem href="/dashboard/users" label="Users" emoji="👥" />
-
           <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
         </nav>
 
-        {/* Bottom */}
+        {/* ---------- Bottom ---------- */}
         <div className="mt-auto flex flex-col gap-3 pt-6">
-          {/* PLAN STATUS */}
+          {/* PLAN */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 dark:text-slate-400">
-                Plan
-              </span>
+              <span className="text-slate-500 dark:text-slate-400">Plan</span>
 
-              <span
-                className={`px-2 py-0.5 rounded text-xs font-semibold
+              <span className={`
+                px-2 py-0.5 rounded text-xs font-semibold
                 ${
                   plan === "basic"
                     ? "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
@@ -145,8 +136,7 @@ export default function Sidebar() {
                     ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
                     : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
                 }
-              `}
-              >
+              `}>
                 {loading ? "..." : plan.toUpperCase()}
               </span>
             </div>
@@ -166,6 +156,7 @@ export default function Sidebar() {
 
           <ThemeToggle />
 
+          {/* Support button */}
           <button
             onClick={() => setShowSupport(true)}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -173,115 +164,113 @@ export default function Sidebar() {
             💬 Support
           </button>
 
+          {/* Logout */}
           <motion.button
-  onClick={async () => {
-    try {
-      await auth.signOut();
-
-      await fetch("/api/auth/logout", {
-        method: "POST"
-      });
-
-      window.location.href = "/login";
-    } catch (err) {
-      console.error("Logout failed", err);
-      alert("Failed to log out");
-    }
-  }}
-  whileHover={{ scale: 1.03 }}
-  whileTap={{ scale: 0.97 }}
-  className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
->
-  Log Out
-</motion.button>
+            onClick={async () => {
+              try {
+                await auth.signOut();
+                await fetch("/api/auth/logout", { method: "POST" });
+                window.location.href = "/login";
+              } catch (err) {
+                console.error("Logout failed", err);
+                alert("Failed to log out");
+              }
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
+          >
+            Log Out
+          </motion.button>
         </div>
       </aside>
 
+      {/* ---------- SUPPORT MODAL ---------- */}
       <AnimatePresence>
-{showSupport && userInfo && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}                     // <-- fade out backdrop
-    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    onClick={() => setShowSupport(false)}
-  >
-    <motion.form
-      onClick={(e) => e.stopPropagation()}
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 10 }} // <-- popup close animation
-      transition={{ type: "spring", stiffness: 240, damping: 20 }}
-      onSubmit={async (e) => {
-        e.preventDefault();
+        {showSupport && userInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowSupport(false)}
+          >
+            <motion.form
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+              onSubmit={async (e) => {
+                e.preventDefault();
 
-        const form = new FormData(e.currentTarget);
-        if (file) form.append("file", file);
-        form.append("metadata", JSON.stringify(userInfo));
+                const form = new FormData(e.currentTarget);
+                if (file) form.append("file", file);
+                form.append("metadata", JSON.stringify(userInfo));
 
-        const res = await fetch("/api/support", {
-          method: "POST",
-          body: form,
-        });
+                const res = await fetch("/api/support", {
+                  method: "POST",
+                  body: form,
+                });
 
-        if (res.ok) alert("Support message sent!");
-        else alert("Failed to send support message");
+                if (res.ok) alert("Support message sent!");
+                else alert("Failed to send support message");
 
-        setShowSupport(false);
-      }}
-      className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700"
-    >
-      <h2 className="text-xl font-semibold mb-4">Contact Support</h2>
+                setShowSupport(false);
+              }}
+              className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700"
+            >
+              <h2 className="text-xl font-semibold mb-4">Contact Support</h2>
 
-      <div className="text-sm mb-3 p-3 rounded bg-slate-100 dark:bg-slate-800">
-        <div><strong>User:</strong> {userInfo?.name}</div>
-        <div><strong>Email:</strong> {userInfo?.email}</div>
-        <div><strong>Org:</strong> {userInfo?.orgName}</div>
-        <div><strong>Plan:</strong> {userInfo?.plan}</div>
-      </div>
+              <div className="text-sm mb-3 p-3 rounded bg-slate-100 dark:bg-slate-800">
+                <div><strong>User:</strong> {userInfo?.name}</div>
+                <div><strong>Email:</strong> {userInfo?.email}</div>
+                <div><strong>Org:</strong> {userInfo?.orgName}</div>
+                <div><strong>Plan:</strong> {userInfo?.plan}</div>
+              </div>
 
-      <input name="subject" placeholder="Subject" required className="input mb-3" />
+              <input name="subject" placeholder="Subject" required className="input mb-3" />
 
-      <textarea
-        name="message"
-        placeholder="Describe your issue…"
-        required
-        className="input h-36 mb-4"
-      />
+              <textarea
+                name="message"
+                placeholder="Describe your issue…"
+                required
+                className="input h-36 mb-4"
+              />
 
-      <label className="text-sm mb-2 block">Screenshot / file (optional)</label>
-      <input
-        type="file"
-        accept="image/*,.pdf,.txt"
-        onChange={(e) => setFile(e.target.files?.[0] || null)}
-        className="mb-4"
-      />
+              <label className="text-sm mb-2 block">Screenshot / file (optional)</label>
+              <input
+                type="file"
+                accept="image/*,.pdf,.txt"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="mb-4"
+              />
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setShowSupport(false)}
-          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-        >
-          Cancel
-        </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSupport(false)}
+                  className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
 
-        <button
-          type="submit"
-          className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded"
-        >
-          Send
-        </button>
-      </div>
-    </motion.form>
-  </motion.div>
-)}
-</AnimatePresence>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded"
+                >
+                  Send
+                </button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
 
-/* ---------------- NAV ITEM ---------------- */
+/* ------------- NAV ITEM ------------- */
 function NavItem({
   href,
   emoji,

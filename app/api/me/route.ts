@@ -1,54 +1,54 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
+import { cookies, headers } from "next/headers";
 import { doc, getDoc } from "firebase/firestore";
-import { getAuth } from "firebase-admin/auth";
-import { headers, cookies } from "next/headers";
+import { db } from "@/lib/firebase";
+import { adminAuth } from "@/lib/firebaseAdmin";
 
-export const runtime = "nodejs"; // IMPORTANT for Firebase Admin
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    console.log("ME API START");
+
+    // 1️⃣ Try header token first
+    const hdrs = headers();
+    const authHeader = (await hdrs).get("authorization");
+
     let idToken: string | undefined;
 
-    // 1️⃣ Headers (await required now)
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-
     if (authHeader?.startsWith("Bearer ")) {
-      idToken = authHeader.replace("Bearer ", "");
+      idToken = authHeader.split("Bearer ")[1];
+      console.log("Using Authorization header token");
+    } else {
+      // 2️⃣ fallback → cookie token
+      const cookieStore = cookies();
+      idToken = (await cookieStore).get("__session")?.value;
+      console.log("Using __session cookie token");
     }
 
-    // 2️⃣ Cookie fallback
     if (!idToken) {
-      const cookieStore = await cookies();
-      const cookie = cookieStore.get("__session");
-      idToken = cookie?.value;
-    }
-
-    if (!idToken) {
+      console.log("NO TOKEN");
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Not logged in" },
         { status: 401 }
       );
     }
 
-    // Verify Firebase token
-    const decoded = await getAuth().verifyIdToken(idToken);
-    const uid = decoded.uid;
+    console.log("VERIFYING TOKEN…");
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    console.log("TOKEN OK", decoded.uid);
 
-    // Load Firestore user
-    const userSnap = await getDoc(doc(db, "users", uid));
+    const userSnap = await getDoc(doc(db, "users", decoded.uid));
     const user = userSnap.data();
 
-    if (!user) {
+    if (!user)
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
-    }
 
-    // Load org if exists
-    let orgData: any = null;
+    let orgData = null;
+
     if (user.orgId) {
       const orgSnap = await getDoc(
         doc(db, "organizations", user.orgId)
@@ -57,7 +57,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      uid,
+      uid: decoded.uid,
       email: decoded.email,
       name: user.name || decoded.name || "User",
       orgId: user.orgId || null,
