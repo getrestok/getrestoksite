@@ -2,6 +2,10 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
+if (!process.env.FIREBASE_PROJECT_ID) {
+  throw new Error("Missing FIREBASE_PROJECT_ID");
+}
+
 const app =
   getApps().length === 0
     ? initializeApp({
@@ -13,8 +17,5 @@ const app =
       })
     : getApps()[0];
 
-// Firestore
 export const adminDb = getFirestore(app);
-
-// Auth
 export const adminAuth = getAuth(app);
