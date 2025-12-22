@@ -31,9 +31,7 @@ type ItemDoc = {
 
 type Plan = "basic" | "pro" | "premium" | "enterprise";
 
-export const metadata = {
-  title: "Dashboard",
-};
+
 
 export default function DashboardHome() {
   const router = useRouter();
