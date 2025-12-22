@@ -187,85 +187,93 @@ export default function Sidebar() {
 
       {/* ---------- SUPPORT MODAL ---------- */}
       <AnimatePresence>
-        {showSupport && userInfo && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-            onClick={() => setShowSupport(false)}
-          >
-            <motion.form
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 10 }}
-              transition={{ type: "spring", stiffness: 240, damping: 20 }}
-              onSubmit={async (e) => {
-                e.preventDefault();
+{showSupport && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    onClick={() => setShowSupport(false)}
+  >
+    <motion.form
+      onClick={(e) => e.stopPropagation()}
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+      transition={{ type: "spring", stiffness: 240, damping: 20 }}
+      onSubmit={async (e) => {
+        e.preventDefault();
 
-                const form = new FormData(e.currentTarget);
-                if (file) form.append("file", file);
-                form.append("metadata", JSON.stringify(userInfo));
+        const form = new FormData(e.currentTarget);
+        if (file) form.append("file", file);
+        form.append("metadata", JSON.stringify(userInfo || {}));
 
-                const res = await fetch("/api/support", {
-                  method: "POST",
-                  body: form,
-                });
+        const res = await fetch("/api/support", {
+          method: "POST",
+          body: form,
+        });
 
-                if (res.ok) alert("Support message sent!");
-                else alert("Failed to send support message");
+        if (res.ok) alert("Support message sent!");
+        else alert("Failed to send support message");
 
-                setShowSupport(false);
-              }}
-              className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700"
-            >
-              <h2 className="text-xl font-semibold mb-4">Contact Support</h2>
+        setShowSupport(false);
+      }}
+      className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700"
+    >
+      <h2 className="text-xl font-semibold mb-4">Contact Support</h2>
 
-              <div className="text-sm mb-3 p-3 rounded bg-slate-100 dark:bg-slate-800">
-                <div><strong>User:</strong> {userInfo?.name}</div>
-                <div><strong>Email:</strong> {userInfo?.email}</div>
-                <div><strong>Org:</strong> {userInfo?.orgName}</div>
-                <div><strong>Plan:</strong> {userInfo?.plan}</div>
-              </div>
-
-              <input name="subject" placeholder="Subject" required className="input mb-3" />
-
-              <textarea
-                name="message"
-                placeholder="Describe your issue…"
-                required
-                className="input h-36 mb-4"
-              />
-
-              <label className="text-sm mb-2 block">Screenshot / file (optional)</label>
-              <input
-                type="file"
-                accept="image/*,.pdf,.txt"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="mb-4"
-              />
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSupport(false)}
-                  className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded"
-                >
-                  Send
-                </button>
-              </div>
-            </motion.form>
-          </motion.div>
+      <div className="text-sm mb-3 p-3 rounded bg-slate-100 dark:bg-slate-800">
+        {!userInfo ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin h-6 w-6 border-4 border-sky-500 border-t-transparent rounded-full" />
+          </div>
+        ) : (
+          <>
+            <div><strong>User:</strong> {userInfo?.name}</div>
+            <div><strong>Email:</strong> {userInfo?.email}</div>
+            <div><strong>Org:</strong> {userInfo?.orgName}</div>
+            <div><strong>Plan:</strong> {userInfo?.plan}</div>
+          </>
         )}
-      </AnimatePresence>
+      </div>
+
+      <input name="subject" placeholder="Subject" required className="input mb-3" />
+
+      <textarea
+        name="message"
+        placeholder="Describe your issue…"
+        required
+        className="input h-36 mb-4"
+      />
+
+      <label className="text-sm mb-2 block">Screenshot / file (optional)</label>
+      <input
+        type="file"
+        accept="image/*,.pdf,.txt"
+        onChange={(e) => setFile(e.target.files?.[0] || null)}
+        className="mb-4"
+      />
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowSupport(false)}
+          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded"
+        >
+          Send
+        </button>
+      </div>
+    </motion.form>
+  </motion.div>
+)}
+</AnimatePresence>
     </>
   );
 }
