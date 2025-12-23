@@ -224,7 +224,7 @@ export default function ItemsPage() {
       { createdAt: new Date() }
     );
 
-    router.push("/dashboard/restock");
+    
   }
 
   // =========================================
@@ -380,59 +380,81 @@ export default function ItemsPage() {
 
       {/* ========================= ADD MODAL ========================= */}
       <AnimatePresence>
-        {showAdd && (
-          <motion.div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.form
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onSubmit={handleAdd}
-              className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
-            >
+  {showAdd && (
+    <motion.div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={() => setShowAdd(false)}   // <<< CLICK OUTSIDE CLOSES
+    >
+      <motion.form
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onSubmit={handleAdd}
+        onClick={(e) => e.stopPropagation()}   // <<< PREVENT CLOSE ON FORM CLICK
+        className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+      >
               <h2 className="text-xl font-semibold">Add Item</h2>
 
-              <input
-                className="input"
-                placeholder="Item name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Item Name
+  </label>
+  <input
+    className="input"
+    placeholder="Paper Towels, Coffee, Printer Ink…"
+    value={name}
+    onChange={(e) => setName(e.target.value)}
+    required
+  />
+</div>
 
-              <input
-                className="input"
-                type="number"
-                placeholder="Days it lasts"
-                value={daysLast}
-                onChange={(e) => setDaysLast(e.target.value)}
-                required
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Reorder Reminder (days)
+  </label>
+  <input
+    className="input"
+    type="number"
+    placeholder="How many days does this usually last?"
+    value={daysLast}
+    onChange={(e) => setDaysLast(e.target.value)}
+    required
+  />
+</div>
 
-              <textarea
-                className="input"
-                placeholder="Description / Notes (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Description / Notes (optional)
+  </label>
+  <textarea
+    className="input"
+    placeholder="Example: Bathroom paper towels for downstairs restrooms"
+    value={description}
+    onChange={(e) => setDescription(e.target.value)}
+  />
+</div>
 
-              <select
-                className="input"
-                value={vendorId}
-                onChange={(e) => setVendorId(e.target.value)}
-              >
-                <option value="">Select vendor</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Supplier
+  </label>
+  <select
+    className="input"
+    value={vendorId}
+    onChange={(e) => setVendorId(e.target.value)}
+  >
+    <option value="">Select supplier</option>
+    {vendors.map((v) => (
+      <option key={v.id} value={v.id}>
+        {v.name}
+      </option>
+    ))}
+  </select>
+</div>
 
               <div className="flex gap-2">
                 <button
@@ -463,6 +485,7 @@ export default function ItemsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={() => setShowEdit(false)}
           >
             <motion.form
               initial={{ scale: 0.9, opacity: 0 }}
@@ -471,59 +494,79 @@ export default function ItemsPage() {
               transition={{ duration: 0.2 }}
               onSubmit={handleEdit}
               className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+              onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-xl font-semibold">Edit Item</h2>
 
-              <input
-                className="input"
-                value={editItem.name}
-                onChange={(e) =>
-                  setEditItem({ ...editItem, name: e.target.value })
-                }
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Item Name
+  </label>
+  <input
+    className="input"
+    value={editItem.name}
+    onChange={(e) =>
+      setEditItem({ ...editItem, name: e.target.value })
+    }
+  />
+</div>
 
-              <input
-                className="input"
-                type="number"
-                value={editItem.daysLast}
-                onChange={(e) =>
-                  setEditItem({
-                    ...editItem,
-                    daysLast: Number(e.target.value),
-                  })
-                }
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Reorder Reminder (days)
+  </label>
+  <input
+    className="input"
+    type="number"
+    value={editItem.daysLast}
+    onChange={(e) =>
+      setEditItem({
+        ...editItem,
+        daysLast: Number(e.target.value),
+      })
+    }
+  />
+</div>
 
-              <textarea
-                className="input"
-                placeholder="Description / Notes (optional)"
-                value={editItem.description || ""}
-                onChange={(e) =>
-                  setEditItem({
-                    ...editItem,
-                    description: e.target.value,
-                  })
-                }
-              />
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Description / Notes (optional)
+  </label>
+  <textarea
+    className="input"
+    placeholder="Optional details about this item"
+    value={editItem.description || ""}
+    onChange={(e) =>
+      setEditItem({
+        ...editItem,
+        description: e.target.value,
+      })
+    }
+  />
+</div>
 
-              <select
-                className="input"
-                value={editItem.vendorId || ""}
-                onChange={(e) =>
-                  setEditItem({
-                    ...editItem,
-                    vendorId: e.target.value,
-                  })
-                }
-              >
-                <option value="">Select vendor</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Supplier
+  </label>
+  <select
+    className="input"
+    value={editItem.vendorId || ""}
+    onChange={(e) =>
+      setEditItem({
+        ...editItem,
+        vendorId: e.target.value,
+      })
+    }
+  >
+    <option value="">Select supplier</option>
+    {vendors.map((v) => (
+      <option key={v.id} value={v.id}>
+        {v.name}
+      </option>
+    ))}
+  </select>
+</div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -553,6 +596,7 @@ export default function ItemsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={() => setShowDelete(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -560,6 +604,7 @@ export default function ItemsPage() {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4"
+              onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-lg font-semibold">Delete item?</h2>
 

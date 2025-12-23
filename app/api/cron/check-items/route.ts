@@ -10,204 +10,148 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET() {
-  const usersSnap = await adminDb.collection("users").get();
   const now = new Date();
-
   let emailsSent = 0;
+
+  const usersSnap = await adminDb.collection("users").get();
 
   for (const userDoc of usersSnap.docs) {
     const user = userDoc.data();
-    if (!user.email || !user.orgId) continue;
 
-    // 🔒 Get org
-    const orgSnap = await adminDb
-      .collection("organizations")
-      .doc(user.orgId)
-      .get();
-
-    
+    if (!user?.email || !user?.orgId) continue;
 
     const itemsSnap = await adminDb
-      .collection("users")
-      .doc(userDoc.id)
+      .collection("organizations")
+      .doc(user.orgId)
       .collection("items")
       .get();
 
     for (const itemDoc of itemsSnap.docs) {
-      const item = itemDoc.data();
-      if (!item.createdAt || !item.daysLast) continue;
+      try {
+        const item = itemDoc.data();
+        if (!item?.createdAt || !item?.daysLast) continue;
 
-      const created = item.createdAt.toDate();
-      const diffDays = Math.floor(
-        (now.getTime() - created.getTime()) / 86400000
-      );
-      const daysLeft = item.daysLast - diffDays;
+        const created = item.createdAt.toDate();
+        const diffDays = Math.floor(
+          (now.getTime() - created.getTime()) / 86400000
+        );
 
-      if (daysLeft > 3) continue;
+        const daysLeft = item.daysLast - diffDays;
 
-      // 🚫 Prevent duplicate alerts (24h cooldown)
-      //const lastAlert = item.lastAlertSentAt?.toDate?.();
-      //if (lastAlert) {
-        //const hoursSince =
-          //(now.getTime() - lastAlert.getTime()) / 3600000;
-        //if (hoursSince < 24) continue;
-      //}
+        // Only alert if <= 3 days remaining
+        if (daysLeft > 3) continue;
 
-      const subject =
-        daysLeft <= 0
-          ? `🚨 ${item.name} is OUT`
-          : `⚠️ ${item.name} is running low`;
+        // OPTIONAL duplicate prevention (commented intentionally)
+        // const lastAlert = item.lastAlertSentAt?.toDate?.();
+        // if (lastAlert) {
+        //   const hoursSince =
+        //     (now.getTime() - lastAlert.getTime()) / 3600000;
+        //   if (hoursSince < 24) continue;
+        // }
 
-      const message =
-        daysLeft <= 0
-          ? `${item.name} has run out and needs restocking.`
-          : `${item.name} will run out in ${daysLeft} days.`;
+        const subject =
+          daysLeft <= 0
+            ? `🚨 ${item.name} is OUT`
+            : `⚠️ ${item.name} is running low`;
 
-      await resend.emails.send({
-        from: "Restok <alerts@getrestok.com>",
-        to: user.email,
-        subject,
-        html: `
+        const html = `
 <!DOCTYPE html>
 <html>
   <body style="margin:0; padding:0; background-color:#f1f5f9;">
-    <!-- FULL WIDTH WRAPPER -->
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding:32px 0;">
       <tr>
         <td align="center">
-
-          <!-- CONTENT CARD -->
           <table width="520" cellpadding="0" cellspacing="0"
-            style="
-              background-color:#ffffff;
-              border-radius:12px;
-              padding:24px;
-              font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-              box-shadow:0 10px 25px rgba(0,0,0,0.06);
-            "
-          >
-            <tr>
-              <td>
+            style="background-color:#ffffff; border-radius:12px; padding:24px;
+              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+              box-shadow:0 10px 25px rgba(0,0,0,0.06);">
+            <tr><td>
 
-                <!-- LOGO -->
-                <div style="text-align:center; margin-bottom:20px;">
-                  <img
-                    src="https://getrestok.com/logo.svg"
-                    alt="Restok"
-                    width="120"
-                    style="display:block; margin:0 auto;"
-                  />
-                </div>
+              <div style="text-align:center; margin-bottom:20px;">
+                <img src="https://getrestok.com/logo.svg"
+                  alt="Restok" width="120"
+                  style="display:block; margin:0 auto;" />
+              </div>
 
-                <!-- HEADER -->
-                <h1 style="
-                  margin:0 0 8px 0;
-                  font-size:22px;
-                  color:#0f172a;
-                ">
-                  ${daysLeft <= 0 ? "🚨 Item Out of Stock" : "⚠️ Item Running Low"}
-                </h1>
+              <h1 style="margin:0 0 8px 0; font-size:22px; color:#0f172a;">
+                ${daysLeft <= 0 ? "🚨 Item Out of Stock" : "⚠️ Item Running Low"}
+              </h1>
 
-                <p style="
-                  margin:0 0 20px 0;
-                  font-size:15px;
-                  color:#475569;
-                ">
-                  This is a restock alert from <strong>Restok</strong>.
-                </p>
+              <p style="margin:0 0 20px 0; font-size:15px; color:#475569;">
+                This is a restock alert from <strong>Restok</strong>.
+              </p>
 
-                <!-- ITEM CARD -->
-                <table width="100%" cellpadding="0" cellspacing="0"
-                  style="
-                    background-color:${daysLeft <= 0 ? "#fee2e2" : "#fef3c7"};
-                    border:1px solid ${daysLeft <= 0 ? "#fecaca" : "#fde68a"};
-                    border-radius:10px;
-                    padding:16px;
-                    margin-bottom:20px;
-                  "
-                >
-                  <tr>
-                    <td>
-                      <p style="
-                        margin:0;
-                        font-size:16px;
-                        font-weight:600;
-                        color:#0f172a;
-                      ">
-                        ${item.name}
-                      </p>
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="
+                  background-color:${daysLeft <= 0 ? "#fee2e2" : "#fef3c7"};
+                  border:1px solid ${daysLeft <= 0 ? "#fecaca" : "#fde68a"};
+                  border-radius:10px;
+                  padding:16px;
+                  margin-bottom:20px;">
+                <tr><td>
 
-                      <p style="
-                        margin:6px 0 0 0;
-                        font-size:14px;
-                        color:#7c2d12;
-                      ">
-                        ${
-                          daysLeft <= 0
-                            ? "This item has run out and needs restocking."
-                            : `This item will run out in <strong>${daysLeft} days</strong>.`
-                        }
-                      </p>
-                    </td>
-                  </tr>
-                </table>
+                  <p style="margin:0; font-size:16px; font-weight:600; color:#0f172a;">
+                    ${item.name}
+                  </p>
 
-                <!-- CTA -->
-                <table width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td align="center">
-                      <a
-                        href="https://getrestok.com/dashboard/restock"
-                        style="
-                          display:inline-block;
-                          width:100%;
-                          background-color:#0ea5e9;
-                          color:#ffffff;
-                          text-decoration:none;
-                          padding:14px 0;
-                          border-radius:8px;
-                          font-weight:600;
-                          font-size:15px;
-                          text-align:center;
-                        "
-                      >
-                        Review & Restock Items
-                      </a>
-                    </td>
-                  </tr>
-                </table>
+                  <p style="margin:6px 0 0 0; font-size:14px; color:#7c2d12;">
+                    ${
+                      daysLeft <= 0
+                        ? "This item has run out and needs restocking."
+                        : `This item will run out in <strong>${daysLeft} days</strong>.`
+                    }
+                  </p>
 
-                <!-- FOOTER -->
-                <p style="
-                  margin-top:20px;
-                  font-size:12px;
-                  color:#64748b;
-                  text-align:center;
-                ">
-                  You’re receiving this email because you use Restok to track supplies.
-                  <br />
-                  © ${new Date().getFullYear()} Restok
-                </p>
+                </td></tr>
+              </table>
 
-              </td>
-            </tr>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="https://getrestok.com/dashboard/restock"
+                    style="display:inline-block; width:100%; background-color:#0ea5e9;
+                      color:#ffffff; text-decoration:none; padding:14px 0;
+                      border-radius:8px; font-weight:600; font-size:15px;
+                      text-align:center;">
+                    Review & Restock Items
+                  </a>
+                </td></tr>
+              </table>
+
+              <p style="margin-top:20px; font-size:12px; color:#64748b; text-align:center;">
+                You’re receiving this email because you use Restok to track items you rely on.<br/>
+                © ${new Date().getFullYear()} Restok
+              </p>
+
+            </td></tr>
           </table>
-
         </td>
       </tr>
     </table>
   </body>
 </html>
-`,
-      });
+        `;
 
-      await itemDoc.ref.update({
-        lastAlertSentAt: Timestamp.now(),
-      });
+        await resend.emails.send({
+          from: "Restok <alerts@getrestok.com>",
+          to: user.email,
+          subject,
+          html,
+        });
 
-      emailsSent++;
+        await itemDoc.ref.update({
+          lastAlertSentAt: Timestamp.now(),
+        });
+
+        emailsSent++;
+      } catch (err) {
+        console.error("Failed on item", itemDoc.id, err);
+      }
     }
   }
 
-  return NextResponse.json({ success: true, emailsSent });
+  return NextResponse.json({
+    success: true,
+    emailsSent,
+    ranAt: now.toISOString(),
+  });
 }

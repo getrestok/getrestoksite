@@ -281,117 +281,121 @@ export default function VendorsPage() {
 
       {/* ADD / EDIT MODAL */}
       {showModal && (
-        <motion.div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-          variants={modalBackdrop}
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
+  <motion.div
+    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    variants={modalBackdrop}
+    initial="hidden"
+    animate="visible"
+    exit="hidden"
+    onClick={resetModal}   // <-- CLICK OUTSIDE CLOSES
+  >
+    <motion.form
+      onSubmit={handleSaveVendor}
+      variants={modalPanel}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}   // <-- PREVENT CLOSE
+    >
+      <h2 className="text-xl font-semibold">
+        {editingVendor ? "Edit Vendor" : "Add Vendor"}
+      </h2>
+
+      <input
+        required
+        className="input"
+        placeholder="Vendor name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      <input
+        className="input"
+        placeholder="Vendor email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <input
+        className="input"
+        placeholder="Vendor website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+      />
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={hasStore}
+          onChange={(e) => setHasStore(e.target.checked)}
+        />
+        This vendor has a physical store location
+      </label>
+
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={resetModal}
+          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
         >
-          <motion.form
-            onSubmit={handleSaveVendor}
-            variants={modalPanel}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4 shadow-2xl"
-          >
-            <h2 className="text-xl font-semibold">
-              {editingVendor ? "Edit Vendor" : "Add Vendor"}
-            </h2>
+          Cancel
+        </button>
 
-            <input
-              required
-              className="input"
-              placeholder="Vendor name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-
-            <input
-              className="input"
-              placeholder="Vendor email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <input
-              className="input"
-              placeholder="Vendor website"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-            />
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={hasStore}
-                onChange={(e) => setHasStore(e.target.checked)}
-              />
-              This vendor has a physical store location
-            </label>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={resetModal}
-                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded transition"
-              >
-                Save
-              </button>
-            </div>
-          </motion.form>
-        </motion.div>
-      )}
+        <button
+          type="submit"
+          className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded transition"
+        >
+          Save
+        </button>
+      </div>
+    </motion.form>
+  </motion.div>
+)}
 
       {/* DELETE CONFIRM */}
       {deleteVendor && (
-        <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          variants={modalBackdrop}
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
+  <motion.div
+    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    variants={modalBackdrop}
+    initial="hidden"
+    animate="visible"
+    exit="hidden"
+    onClick={() => setDeleteVendor(null)}   // <-- CLICK OUTSIDE CLOSES
+  >
+    <motion.div
+      variants={modalPanel}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}   // <-- PREVENT CLOSE
+    >
+      <h2 className="text-lg font-semibold">Delete vendor?</h2>
+
+      <p className="text-sm text-slate-600 dark:text-slate-400">
+        Are you sure you want to delete{" "}
+        <strong>{deleteVendor.name}</strong>? This cannot be undone.
+      </p>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setDeleteVendor(null)}
+          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
         >
-          <motion.div
-            variants={modalPanel}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
-          >
-            <h2 className="text-lg font-semibold">Delete vendor?</h2>
+          Cancel
+        </button>
 
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Are you sure you want to delete{" "}
-              <strong>{deleteVendor.name}</strong>? This cannot be undone.
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteVendor(null)}
-                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={() => handleDeleteVendor(deleteVendor)}
-                className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded transition"
-              >
-                Delete
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+        <button
+          onClick={() => handleDeleteVendor(deleteVendor)}
+          className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded transition"
+        >
+          Delete
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+)}
     </motion.main>
   );
 }

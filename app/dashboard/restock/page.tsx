@@ -158,11 +158,11 @@ export default function RestockPage() {
   // ---------------------------------
   // HELPERS
   // ---------------------------------
-  function isInnerSpaceVendor(v?: VendorDoc) {
-    if (!v?.name) return false;
-    const n = v.name.toLowerCase();
-    return n.includes("inner space") || n.includes("issi");
-  }
+  //function isInnerSpaceVendor(v?: VendorDoc) {
+   // if (!v?.name) return false;
+   // const n = v.name.toLowerCase();
+   // return n.includes("inner space") || n.includes("issi");
+  //}
 
   function normalizeWebsite(url?: string) {
     if (!url) return null;
@@ -197,23 +197,23 @@ export default function RestockPage() {
     }
   }
 
-  function buildInnerSpaceEmail(item: ItemDoc) {
-    const subject = `Restock Request – ${item.name}`;
-    const body = `Hello Inner Space Systems,
+ // function buildInnerSpaceEmail(item: ItemDoc) {
+   // const subject = `Restock Request – ${item.name}`;
+   // const body = `Hello Inner Space Systems,
 
-I would like to place a restock order for:
+//I would like to place a restock order for:
 
-Item: ${item.name}
+//Item: ${item.name}
 
-This request was sent from Restok.
+//This request was sent from Restok.
 
-Thank you,
-${user?.displayName || user?.email || "—"}`;
+//Thank you,
+//${user?.displayName || user?.email || "—"}`;
 
-    return `mailto:sales@issioffice.com?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
-  }
+//    return `mailto:sales@issioffice.com?subject=${encodeURIComponent(
+ //     subject
+ //   )}&body=${encodeURIComponent(body)}`;
+ // }
 
   function buildVendorEmail(vendor: VendorDoc, item: ItemDoc) {
     const subject = `Restock Request – ${item.name}`;
@@ -321,13 +321,13 @@ ${user?.displayName || user?.email || "—"}`;
                 <span className="text-xs italic text-slate-400">
                   No vendor linked
                 </span>
-              ) : isInnerSpaceVendor(vendor) ? (
-                <a
-                  href={buildInnerSpaceEmail(item)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm"
-                >
-                  Email Inner Space
-                </a>
+             // ) : isInnerSpaceVendor(vendor) ? (
+             //   <a
+             //     href={buildInnerSpaceEmail(item)}
+              //    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm"
+              //  >
+               //   Email Inner Space
+               // </a>
               ) : (
                 <div className="flex items-center gap-3">
                   {/* EMAIL vs WEBSITE toggle */}
