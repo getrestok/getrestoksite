@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 const sections = [
   {
@@ -338,45 +339,144 @@ Questions? Email support@getrestok.com.
   }
 ];
 
+// simple "is this line a heading?" detector
+function isHeading(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > 80) return false;
+  if (trimmed.startsWith("•")) return false;
+  if (/^\d+\)/.test(trimmed)) return false;
+  if (/[.!?]$/.test(trimmed)) return false;
+  return true;
+}
+
 export default function TermsPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <main className="max-w-3xl mx-auto p-10">
-      <h1 className="text-3xl font-bold">Restok Terms & Policies</h1>
-      <p className="text-slate-600 dark:text-slate-400 mt-2">
-        Please review the policies below that govern your use of Restok.
-      </p>
+    <main className="antialiased bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col">
 
-      <div className="mt-8 space-y-3">
-        {sections.map((section, i) => (
-          <div
-            key={i}
-            className="border rounded-xl bg-white dark:bg-slate-800 dark:border-slate-700"
-          >
-            <button
-              onClick={() => setOpenIndex(openIndex === i ? null : i)}
-              className="w-full flex justify-between items-center p-4 text-left"
-            >
-              <span className="font-semibold text-lg">
-                {section.title}
-              </span>
-
-              <span className="text-2xl leading-none">
-                {openIndex === i ? "−" : "+"}
-              </span>
-            </button>
-
-            {openIndex === i && (
-              <div className="p-4 pt-0 text-slate-700 dark:text-slate-300 text-sm">
-                {section.content.split("\n").map((line, idx) => (
-                  <p key={idx} className="mt-2">{line.trim()}</p>
-                ))}
+      {/* HEADER (matches homepage style, with Terms link) */}
+      <header className="border-b py-4 sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur z-50">
+        <div className="mx-auto max-w-7xl px-6 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-3">
+            <Image
+              src="/logo.svg"
+              alt="Restok logo"
+              width={40}
+              height={40}
+              className="shrink-0"
+            />
+            <div>
+              <div className="font-semibold text-slate-900 dark:text-white">
+                Restok
               </div>
-            )}
+              <div className="text-xs text-slate-500 dark:text-slate-400 -mt-1">
+                Your office, always stocked.
+              </div>
+            </div>
+          </a>
+
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            <a href="/#features" className="hover:text-slate-900">Features</a>
+            <a href="/#how" className="hover:text-slate-900">How it works</a>
+            <a href="/#pricing" className="hover:text-slate-900">Pricing</a>
+            <a href="/terms" className="hover:text-slate-900">Terms</a>
+            <a href="/login" className="text-sky-600 font-medium">Log in</a>
+            <a
+              href="/signup"
+              className="ml-2 inline-block bg-sky-600 text-white px-4 py-2 rounded-lg shadow"
+            >
+              Get Started
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      {/* CONTENT */}
+      <div className="flex-1 w-full">
+        <div className="max-w-3xl mx-auto px-6 py-10">
+          <h1 className="text-3xl font-bold">Restok Terms &amp; Policies</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-2">
+            Please review the policies below that govern your use of Restok.
+          </p>
+
+          <div className="mt-8 space-y-3">
+            {sections.map((section, i) => (
+              <div
+                key={i}
+                className="border rounded-xl bg-white dark:bg-slate-800 dark:border-slate-700"
+              >
+                <button
+                  onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                  className="w-full flex justify-between items-center p-4 text-left"
+                >
+                  <span className="font-semibold text-lg">
+                    {section.title}
+                  </span>
+
+                  <span className="text-2xl leading-none">
+                    {openIndex === i ? "−" : "+"}
+                  </span>
+                </button>
+
+                {openIndex === i && (
+                  <div className="p-4 pt-0 text-slate-700 dark:text-slate-300 text-sm">
+                    {section.content
+                      .split("\n")
+                      .map((rawLine, idx) => {
+                        const line = rawLine.trim();
+                        if (!line) return null; // skip blank lines
+                        const heading = isHeading(line);
+                        return (
+                          <p
+                            key={idx}
+                            className={`mt-2 ${
+                              heading ? "font-semibold" : ""
+                            }`}
+                          >
+                            {line}
+                          </p>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
+
+      {/* FOOTER (matches homepage, with Terms link) */}
+      <footer className="border-t py-8 mt-4">
+        <div className="mx-auto max-w-7xl px-6 grid md:grid-cols-3 gap-6 text-sm text-slate-600">
+          <div>
+            <div className="font-semibold">Restok</div>
+            <div className="mt-2">
+              Smart restock reminders for small businesses.
+            </div>
+          </div>
+          <div>
+            <div className="font-semibold">Product</div>
+            <ul className="mt-2 space-y-2">
+              <li><a href="/#features">Features</a></li>
+              <li><a href="/#pricing">Pricing</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-semibold">Company</div>
+            <ul className="mt-2 space-y-2">
+              <li><a href="#">About</a></li>
+              <li><a href="/contact">Contact</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-6 mt-8 text-center text-xs text-slate-400">
+          © 2025 <a href="https://www.issioffice.com">Inner Space Systems Inc.</a> — All rights reserved
+        </div>
+      </footer>
     </main>
   );
 }
