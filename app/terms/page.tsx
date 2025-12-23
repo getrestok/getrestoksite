@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 const sections = [
   {
@@ -403,45 +404,63 @@ export default function TermsPage() {
 
           <div className="mt-8 space-y-3">
             {sections.map((section, i) => (
-              <div
-                key={i}
-                className="border rounded-xl bg-white dark:bg-slate-800 dark:border-slate-700"
-              >
+  <motion.div
+    key={i}
+    className="border rounded-xl bg-white dark:bg-slate-800 dark:border-slate-700"
+    initial={{ opacity: 0, y: 10 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: "-100px" }}
+    transition={{ duration: 0.25 }}
+  >
                 <button
-                  onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                  className="w-full flex justify-between items-center p-4 text-left"
-                >
-                  <span className="font-semibold text-lg">
-                    {section.title}
-                  </span>
+  onClick={() => setOpenIndex(openIndex === i ? null : i)}
+  className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition rounded-xl"
+>
+  <span className="font-semibold text-lg">{section.title}</span>
 
-                  <span className="text-2xl leading-none">
-                    {openIndex === i ? "−" : "+"}
-                  </span>
-                </button>
+  <motion.span
+    className="text-2xl leading-none"
+    animate={{ rotate: openIndex === i ? 180 : 0 }}
+    transition={{ duration: 0.25 }}
+  >
+    {openIndex === i ? "−" : "+"}
+  </motion.span>
+</button>
 
-                {openIndex === i && (
-                  <div className="p-4 pt-0 text-slate-700 dark:text-slate-300 text-sm">
-                    {section.content
-                      .split("\n")
-                      .map((rawLine, idx) => {
-                        const line = rawLine.trim();
-                        if (!line) return null; // skip blank lines
-                        const heading = isHeading(line);
-                        return (
-                          <p
-                            key={idx}
-                            className={`mt-2 ${
-                              heading ? "font-semibold" : ""
-                            }`}
-                          >
-                            {line}
-                          </p>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
+                <AnimatePresence>
+  {openIndex === i && (
+    <motion.div
+      key="content"
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="overflow-hidden"
+    >
+      <div className="p-4 pt-0 text-slate-700 dark:text-slate-300 text-sm">
+        {section.content
+          .split("\n")
+          .map((rawLine, idx) => {
+            const line = rawLine.trim();
+            if (!line) return null;
+            const heading = isHeading(line);
+            return (
+              <motion.p
+                key={idx}
+                className={`mt-2 ${heading ? "font-semibold" : ""}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: idx * 0.002 }}
+              >
+                {line}
+              </motion.p>
+            );
+          })}
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+              </motion.div>
             ))}
           </div>
         </div>
