@@ -54,6 +54,7 @@ export default function Home() {
             <a href="#features" className="hover:text-slate-900">Features</a>
             <a href="#how" className="hover:text-slate-900">How it works</a>
             <a href="#pricing" className="hover:text-slate-900">Pricing</a>
+            <a href="/terms" className="hover:text-slate-900">Terms</a>
             <a href="/login" className="text-sky-600 font-medium">Log in</a>
             <a
               href="/signup"
@@ -276,6 +277,7 @@ export default function Home() {
               <ul className="mt-2 space-y-2">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#pricing">Pricing</a></li>
+                <li><a href="/terms">Terms and Policies</a></li>
               </ul>
             </div>
             <div>
