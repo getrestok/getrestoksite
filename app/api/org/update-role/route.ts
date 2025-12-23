@@ -15,48 +15,47 @@ export async function POST(req: Request) {
     const decoded = await adminAuth.verifyIdToken(token);
     const callerUid = decoded.uid;
 
-    const { uid, role } = await req.json();
-
-    if (!uid || !role)
+    const { uid } = await req.json();
+    if (!uid)
       return NextResponse.json(
-        { error: "Missing uid or role" },
+        { error: "Missing uid" },
         { status: 400 }
       );
 
-    if (!["admin", "member"].includes(role))
-      return NextResponse.json(
-        { error: "Invalid role" },
-        { status: 400 }
-      );
-
-    // ---------------------------
-    // LOAD CALLER
-    // ---------------------------
+    // -------------------------
+    // Caller
+    // -------------------------
     const callerSnap = await adminDb.collection("users").doc(callerUid).get();
     if (!callerSnap.exists)
-      return NextResponse.json({ error: "Caller not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Caller not found" },
+        { status: 404 }
+      );
 
     const caller = callerSnap.data()!;
     const orgId = caller.orgId;
 
     if (!orgId)
-      return NextResponse.json({ error: "No organization" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No organization" },
+        { status: 400 }
+      );
 
     if (!(caller.role === "owner" || caller.role === "admin"))
       return NextResponse.json(
-        { error: "You are not allowed to manage roles" },
+        { error: "You are not allowed to delete users" },
         { status: 403 }
       );
 
-    // ---------------------------
-    // LOAD TARGET
-    // ---------------------------
+    // -------------------------
+    // Target user
+    // -------------------------
     const targetRef = adminDb.collection("users").doc(uid);
     const targetSnap = await targetRef.get();
 
     if (!targetSnap.exists)
       return NextResponse.json(
-        { error: "User does not exist" },
+        { error: "User not found" },
         { status: 404 }
       );
 
@@ -64,20 +63,20 @@ export async function POST(req: Request) {
 
     if (target.orgId !== orgId)
       return NextResponse.json(
-        { error: "User not in your organization" },
+        { error: "User is not in your organization" },
         { status: 403 }
       );
 
-    if (target.role === "owner")
+    // 🚫 DO NOT DELETE OWNER
+    if (target.role === "owner") {
       return NextResponse.json(
-        { error: "You cannot modify the owner" },
+        { error: "You cannot delete the organization owner" },
         { status: 403 }
       );
+    }
 
-    // ---------------------------
-    // PREVENT REMOVING LAST ADMIN
-    // ---------------------------
-    if (role === "member") {
+    // 🚫 DO NOT DELETE LAST ADMIN
+    if (target.role === "admin") {
       const adminsSnap = await adminDb
         .collection("users")
         .where("orgId", "==", orgId)
@@ -92,17 +91,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // ---------------------------
-    // UPDATE USER
-    // ---------------------------
+    // -------------------------
+    // Delete user
+    // -------------------------
     await targetRef.update({
-      role,
-      updatedAt: new Date(),
+      orgId: null,
+      role: "member",
+      removedAt: new Date()
     });
 
     return NextResponse.json({ success: true });
+
   } catch (err) {
-    console.error("UPDATE ROLE ERROR", err);
+    console.error("DELETE USER ERROR", err);
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
