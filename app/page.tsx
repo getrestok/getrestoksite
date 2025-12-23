@@ -77,11 +77,10 @@ export default function Home() {
             transition={{ duration: 0.7 }}
           >
             <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
-              Never run out of supplies again.
+              Never forget to reorder the things your business depends on.
             </h1>
             <p className="mt-4 text-lg text-slate-600">
-              Restok tracks your recurring business supplies and reminds the right people 
-              when it's time to reorder — before you run out.
+              Restok helps small businesses 
             </p>
 
             <div className="mt-6 flex gap-3">

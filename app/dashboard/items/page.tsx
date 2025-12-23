@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { PLANS } from "@/lib/plans";
 
 type ItemDoc = {
@@ -23,14 +23,13 @@ type ItemDoc = {
   daysLast: number;
   createdAt?: any;
   createdByName?: string;
+  description?: string; // NEW
 };
 
 type VendorDoc = {
   id: string;
   name: string;
 };
-
-
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -47,23 +46,24 @@ export default function ItemsPage() {
 
   const loadingPage = !planLoaded || !itemsLoaded;
 
-  // Add modal
+  // ---------- Add Modal ----------
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [daysLast, setDaysLast] = useState("");
   const [vendorId, setVendorId] = useState("");
+  const [description, setDescription] = useState(""); // NEW
 
-  // Edit modal
+  // ---------- Edit Modal ----------
   const [showEdit, setShowEdit] = useState(false);
   const [editItem, setEditItem] = useState<ItemDoc | null>(null);
 
-  // Delete confirm
+  // ---------- Delete ----------
   const [showDelete, setShowDelete] = useState(false);
   const [deleteItem, setDeleteItem] = useState<ItemDoc | null>(null);
 
-  // ---------------------------
-  // AUTH + ORG + PLAN + DATA
-  // ---------------------------
+  // =========================================
+  // AUTH + ORG + DATA
+  // =========================================
   useEffect(() => {
     let unsubOrg: any;
     let unsubItems: any;
@@ -84,22 +84,19 @@ export default function ItemsPage() {
         setOrgId(org);
 
         // PLAN
-        const unsubPlan = onSnapshot(
-          doc(db, "organizations", org),
-          (orgSnap) => {
-            const rawPlan = orgSnap.data()?.plan;
-            setPlan(
-              rawPlan === "pro" ||
-              rawPlan === "premium" ||
-              rawPlan === "enterprise"
-                ? rawPlan
-                : "basic"
-            );
-            setPlanLoaded(true);
-          }
-        );
+        onSnapshot(doc(db, "organizations", org), (orgSnap) => {
+          const rawPlan = orgSnap.data()?.plan;
+          setPlan(
+            rawPlan === "pro" ||
+            rawPlan === "premium" ||
+            rawPlan === "enterprise"
+              ? rawPlan
+              : "basic"
+          );
+          setPlanLoaded(true);
+        });
 
-        // LOAD VENDORS
+        // VENDORS
         unsubVendors = onSnapshot(
           collection(db, "organizations", org, "vendors"),
           (snap) => {
@@ -109,7 +106,7 @@ export default function ItemsPage() {
           }
         );
 
-        // LOAD ITEMS
+        // ITEMS
         unsubItems = onSnapshot(
           collection(db, "organizations", org, "items"),
           (snap) => {
@@ -130,9 +127,9 @@ export default function ItemsPage() {
     };
   }, [router]);
 
-  // ---------------------------
+  // =========================================
   // HELPERS
-  // ---------------------------
+  // =========================================
   function getStatus(item: ItemDoc) {
     if (!item.createdAt?.toDate) return null;
 
@@ -167,9 +164,9 @@ export default function ItemsPage() {
     return Math.min(100, Math.max(0, (left / item.daysLast) * 100));
   }
 
-  // ---------------------------
+  // =========================================
   // ACTIONS
-  // ---------------------------
+  // =========================================
   async function handleAdd(e: any) {
     e.preventDefault();
     if (!user || !orgId) return;
@@ -178,6 +175,7 @@ export default function ItemsPage() {
       name,
       vendorId: vendorId || null,
       daysLast: Number(daysLast),
+      description: description || "", // NEW
       createdAt: serverTimestamp(),
       createdByName: user.displayName || user.email,
     });
@@ -186,6 +184,7 @@ export default function ItemsPage() {
     setName("");
     setDaysLast("");
     setVendorId("");
+    setDescription("");
   }
 
   async function handleEdit(e: any) {
@@ -198,6 +197,7 @@ export default function ItemsPage() {
         name: editItem.name,
         vendorId: editItem.vendorId || null,
         daysLast: Number(editItem.daysLast),
+        description: editItem.description || "", // NEW
       }
     );
 
@@ -227,18 +227,22 @@ export default function ItemsPage() {
     router.push("/dashboard/restock");
   }
 
-  // ---------------------------
-  // PLAN LIMIT
-  // ---------------------------
+  // =========================================
+  // PLAN LIMIT (BASIC = 5)
+  // =========================================
   const planConfig = PLANS[plan];
   const itemLimit =
-    "limits" in planConfig ? planConfig.limits.items : Infinity;
+    plan === "basic"
+      ? 5 // 🔥 your request
+      : "limits" in planConfig
+      ? planConfig.limits.items
+      : Infinity;
 
   const atLimit = itemLimit !== Infinity && items.length >= itemLimit;
 
-  // ---------------------------
-  // LOADING OVERLAY
-  // ---------------------------
+  // =========================================
+  // LOADING
+  // =========================================
   if (loadingPage) {
     return (
       <motion.main
@@ -256,9 +260,9 @@ export default function ItemsPage() {
     );
   }
 
-  // ---------------------------
+  // =========================================
   // UI
-  // ---------------------------
+  // =========================================
   return (
     <motion.main className="p-10 flex-1">
       <h1 className="text-3xl font-bold">Items</h1>
@@ -315,8 +319,7 @@ export default function ItemsPage() {
                   <span
                     className={`mt-1 inline-block px-2 py-1 text-xs rounded text-white ${status.color}`}
                   >
-                    {status.label} • {status.daysLeft} days
-                    left
+                    {status.label} • {status.daysLeft} days left
                   </span>
                 )}
 
@@ -330,6 +333,12 @@ export default function ItemsPage() {
                 <p className="text-sm mt-2">
                   Vendor: {getVendorName(item)}
                 </p>
+
+                {item.description && (
+                  <p className="text-sm text-slate-600 mt-1">
+                    Notes: {item.description}
+                  </p>
+                )}
 
                 <p className="text-xs text-slate-500 mt-1">
                   Added by {item.createdByName || "Unknown"}
@@ -369,162 +378,215 @@ export default function ItemsPage() {
         })}
       </div>
 
-      {/* -------- ADD MODAL -------- */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <form
-            onSubmit={handleAdd}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+      {/* ========================= ADD MODAL ========================= */}
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <h2 className="text-xl font-semibold">Add Item</h2>
-
-            <input
-              className="input"
-              placeholder="Item name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-
-            <input
-              className="input"
-              type="number"
-              placeholder="Days it lasts"
-              value={daysLast}
-              onChange={(e) => setDaysLast(e.target.value)}
-              required
-            />
-
-            <select
-              className="input"
-              value={vendorId}
-              onChange={(e) => setVendorId(e.target.value)}
+            <motion.form
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleAdd}
+              className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
             >
-              <option value="">Select vendor</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+              <h2 className="text-xl font-semibold">Add Item</h2>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAdd(false)}
-                className="w-1/2 border p-3 rounded"
+              <input
+                className="input"
+                placeholder="Item name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+
+              <input
+                className="input"
+                type="number"
+                placeholder="Days it lasts"
+                value={daysLast}
+                onChange={(e) => setDaysLast(e.target.value)}
+                required
+              />
+
+              <textarea
+                className="input"
+                placeholder="Description / Notes (optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+
+              <select
+                className="input"
+                value={vendorId}
+                onChange={(e) => setVendorId(e.target.value)}
               >
-                Cancel
-              </button>
+                <option value="">Select vendor</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
 
-              <button
-                type="submit"
-                className="w-1/2 bg-sky-600 text-white p-3 rounded"
-              >
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  className="w-1/2 border p-3 rounded"
+                >
+                  Cancel
+                </button>
 
-      {/* -------- EDIT MODAL -------- */}
-      {showEdit && editItem && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <form
-            onSubmit={handleEdit}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+                <button
+                  type="submit"
+                  className="w-1/2 bg-sky-600 text-white p-3 rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================= EDIT MODAL ========================= */}
+      <AnimatePresence>
+        {showEdit && editItem && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <h2 className="text-xl font-semibold">Edit Item</h2>
-
-            <input
-              className="input"
-              value={editItem.name}
-              onChange={(e) =>
-                setEditItem({ ...editItem, name: e.target.value })
-              }
-            />
-
-            <input
-              className="input"
-              type="number"
-              value={editItem.daysLast}
-              onChange={(e) =>
-                setEditItem({
-                  ...editItem,
-                  daysLast: Number(e.target.value),
-                })
-              }
-            />
-
-            <select
-              className="input"
-              value={editItem.vendorId || ""}
-              onChange={(e) =>
-                setEditItem({
-                  ...editItem,
-                  vendorId: e.target.value,
-                })
-              }
+            <motion.form
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleEdit}
+              className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
             >
-              <option value="">Select vendor</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+              <h2 className="text-xl font-semibold">Edit Item</h2>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowEdit(false)}
-                className="w-1/2 border p-3 rounded"
+              <input
+                className="input"
+                value={editItem.name}
+                onChange={(e) =>
+                  setEditItem({ ...editItem, name: e.target.value })
+                }
+              />
+
+              <input
+                className="input"
+                type="number"
+                value={editItem.daysLast}
+                onChange={(e) =>
+                  setEditItem({
+                    ...editItem,
+                    daysLast: Number(e.target.value),
+                  })
+                }
+              />
+
+              <textarea
+                className="input"
+                placeholder="Description / Notes (optional)"
+                value={editItem.description || ""}
+                onChange={(e) =>
+                  setEditItem({
+                    ...editItem,
+                    description: e.target.value,
+                  })
+                }
+              />
+
+              <select
+                className="input"
+                value={editItem.vendorId || ""}
+                onChange={(e) =>
+                  setEditItem({
+                    ...editItem,
+                    vendorId: e.target.value,
+                  })
+                }
               >
-                Cancel
-              </button>
+                <option value="">Select vendor</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
 
-              <button
-                type="submit"
-                className="w-1/2 bg-blue-600 text-white p-3 rounded"
-              >
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(false)}
+                  className="w-1/2 border p-3 rounded"
+                >
+                  Cancel
+                </button>
 
-      {/* -------- DELETE MODAL -------- */}
-      {showDelete && deleteItem && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4">
-            <h2 className="text-lg font-semibold">Delete item?</h2>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-blue-600 text-white p-3 rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <p>
-              Are you sure you want to delete{" "}
-              <strong>{deleteItem.name}</strong>? This cannot be
-              undone.
-            </p>
+      {/* ========================= DELETE MODAL ========================= */}
+      <AnimatePresence>
+        {showDelete && deleteItem && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4"
+            >
+              <h2 className="text-lg font-semibold">Delete item?</h2>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowDelete(false)}
-                className="w-1/2 border p-3 rounded"
-              >
-                Cancel
-              </button>
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{deleteItem.name}</strong>? This cannot be undone.
+              </p>
 
-              <button
-                onClick={handleDeleteConfirmed}
-                className="w-1/2 bg-red-600 text-white p-3 rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDelete(false)}
+                  className="w-1/2 border p-3 rounded"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleDeleteConfirmed}
+                  className="w-1/2 bg-red-600 text-white p-3 rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.main>
   );
 }
