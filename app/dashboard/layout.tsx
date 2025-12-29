@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "../../components/sidebar";
+import BetaNotice from "@/components/BetaNotice";
 
 export default function DashboardLayout({
   children,
@@ -48,6 +49,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       <Sidebar />
+      <BetaNotice />
 
       <div className="flex-1 ml-0 md:ml-64">
         {children}

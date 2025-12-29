@@ -1,135 +1,129 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer "))
+      return NextResponse.json(
+        { error: "Missing auth token" },
+        { status: 401 }
+      );
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.replace("Bearer ", "");
     const decoded = await adminAuth.verifyIdToken(token);
-    const requesterUid = decoded.uid;
+    const callerUid = decoded.uid;
 
     const { uid } = await req.json();
-
-    if (!uid) {
+    if (!uid)
       return NextResponse.json(
-        { error: "Missing user id" },
+        { error: "Missing uid" },
         { status: 400 }
       );
-    }
 
-    if (uid === requesterUid) {
+    // 🚫 Block deleting yourself
+    if (uid === callerUid)
       return NextResponse.json(
-        { error: "You cannot remove yourself" },
+        { error: "You cannot remove yourself from the organization." },
         { status: 400 }
       );
-    }
 
-    // Get user being deleted
-    const userSnap = await adminDb.doc(`users/${uid}`).get();
-    if (!userSnap.exists) {
+    // -------------------------
+    // CALLER
+    // -------------------------
+    const callerSnap = await adminDb.collection("users").doc(callerUid).get();
+    if (!callerSnap.exists)
       return NextResponse.json(
-        { error: "User not found" },
+        { error: "Caller not found" },
         { status: 404 }
       );
-    }
 
-    const user = userSnap.data();
-    const orgId = user?.orgId;
+    const caller = callerSnap.data()!;
+    const orgId = caller.orgId;
 
-    if (!orgId) {
+    if (!orgId)
       return NextResponse.json(
-        { error: "User does not belong to an organization" },
+        { error: "You are not in an organization" },
         { status: 400 }
       );
-    }
 
-    // Get requester (security)
-    const requesterSnap = await adminDb.doc(`users/${requesterUid}`).get();
-    const requester = requesterSnap.data();
-
-    if (!requester || requester.orgId !== orgId) {
+    if (!(caller.role === "owner" || caller.role === "admin"))
       return NextResponse.json(
-        { error: "You do not belong to this organization" },
+        { error: "You are not allowed to delete users" },
         { status: 403 }
       );
-    }
 
-    if (requester.role !== "owner" && requester.role !== "admin") {
-      return NextResponse.json(
-        { error: "Only owners and admins can remove users" },
-        { status: 403 }
-      );
-    }
-
-    // Get org
-    const orgSnap = await adminDb.doc(`organizations/${orgId}`).get();
-    if (!orgSnap.exists) {
+    // -------------------------
+    // ORG (authoritative owner)
+    // -------------------------
+    const orgSnap = await adminDb.collection("organizations").doc(orgId).get();
+    if (!orgSnap.exists)
       return NextResponse.json(
         { error: "Organization not found" },
         { status: 404 }
       );
-    }
 
-    const org = orgSnap.data();
+    const org = orgSnap.data()!;
+    const ownerId = org.ownerId;
 
-    if (!org) {
+    // -------------------------
+    // TARGET USER
+    // -------------------------
+    const targetRef = adminDb.collection("users").doc(uid);
+    const targetSnap = await targetRef.get();
+
+    if (!targetSnap.exists)
       return NextResponse.json(
-        { error: "Organization data missing" },
-        { status: 500 }
+        { error: "User not found" },
+        { status: 404 }
       );
-    }
 
-    // Cannot delete owner
-    if (user.role === "owner" || org.ownerId === uid) {
+    const target = targetSnap.data()!;
+
+    if (target.orgId !== orgId)
       return NextResponse.json(
-        { error: "You cannot remove the owner" },
-        { status: 400 }
+        { error: "User is not in your organization" },
+        { status: 403 }
       );
+
+    // 🚫 Owner cannot be deleted
+    if (uid === ownerId)
+      return NextResponse.json(
+        { error: "You cannot remove the organization owner" },
+        { status: 403 }
+      );
+
+    // 🚫 Prevent deleting last admin
+    if (target.role === "admin" || target.role === "owner") {
+      const adminsSnap = await adminDb
+        .collection("users")
+        .where("orgId", "==", orgId)
+        .where("role", "in", ["admin", "owner"])
+        .get();
+
+      if (adminsSnap.size <= 1)
+        return NextResponse.json(
+          { error: "Organization must have at least one admin" },
+          { status: 400 }
+        );
     }
 
-    // Ensure at least ONE admin remains
-    const membersSnap = await adminDb
-      .collection("users")
-      .where("orgId", "==", orgId)
-      .get();
-
-    const admins = membersSnap.docs.filter((d) => {
-      const r = d.data().role;
-      return r === "admin" || r === "owner";
+    // 1️⃣ Soft remove from org first
+    await targetRef.update({
+      orgId: null,
+      role: "member",
+      removedAt: new Date(),
+      deleted_user: true,
     });
 
-    if (admins.length <= 1 && (user.role === "admin" || user.role === "owner")) {
-      return NextResponse.json(
-        { error: "Organization must have at least one admin" },
-        { status: 400 }
-      );
-    }
-
-    // 🔥 DELETE USER FIRESTORE PROFILE
-    await userSnap.ref.delete();
-
-    // 🔥 DELETE AUTH ACCOUNT
+    // 2️⃣ Delete Firebase Auth account
     await adminAuth.deleteUser(uid);
 
-    // Optional audit log
-    await adminDb.collection("auditLogs").add({
-      type: "user_deleted",
-      removedUser: uid,
-      removedBy: requesterUid,
-      orgId,
-      createdAt: new Date(),
-    });
-
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error("Delete user failed:", err);
+  } catch (err) {
+    console.error("DELETE USER ERROR", err);
     return NextResponse.json(
-      { error: err.message || "Something went wrong" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
