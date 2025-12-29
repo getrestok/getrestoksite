@@ -92,41 +92,42 @@ export default function InternalPanel() {
     if (!authReady) return;
 
     async function load() {
-      const snap = await getDocs(collection(db, "users"));
+  const snap = await getDocs(collection(db, "users"));
 
-      const raw = snap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as any) }))
-        .filter((u) => u.role === "owner");  // ⭐ ONLY SHOW OWNERS
+  const raw = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as any),
+  }));
 
-      const usersWithPlan: InternalUser[] = [];
+  const usersWithPlan: InternalUser[] = [];
 
-      for (const u of raw) {
-        let plan = "basic";
+  for (const u of raw) {
+    if (!u.orgId) continue; // must have org
 
-        if (u.orgId) {
-          const orgRef = doc(db, "organizations", u.orgId);
-          const orgSnap = await getDoc(orgRef);
+    const orgRef = doc(db, "organizations", u.orgId);
+    const orgSnap = await getDoc(orgRef);
 
-          const orgData = orgSnap.data();
-          if (orgData) {
-            plan = orgData.plan || "basic";
-          }
-        }
+    if (!orgSnap.exists()) continue;
 
-        usersWithPlan.push({
-          id: u.id,
-          email: u.email,
-          name: u.name || u.displayName || "Unknown",
-          phone: u.phone || "",
-          orgId: u.orgId || null,
-          role: u.role || "member",
-          plan,
-        });
-      }
+    const org = orgSnap.data();
 
-      setUsers(usersWithPlan);
-      setLoadingData(false);
-    }
+    // ⭐ THIS IS THE REAL OWNER CHECK
+    if (org.ownerId !== u.id) continue;
+
+    usersWithPlan.push({
+      id: u.id,
+      email: u.email,
+      name: u.name || u.displayName || "Unknown",
+      phone: u.phone || "",
+      orgId: u.orgId,
+      role: u.role || "owner",
+      plan: org.plan || "basic",
+    });
+  }
+
+  setUsers(usersWithPlan);
+  setLoadingData(false);
+}
 
     load();
   }, [authReady]);
