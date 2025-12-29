@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, onSnapshot } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useOrgData } from "@/lib/useOrgData";
 
 type Item = {
   id: string;
@@ -47,92 +44,19 @@ function LockedBlur({ children, onClick }: any) {
   );
 }
 
-
 export default function ReportsPage() {
-  const router = useRouter();
+  const { items, vendors: vendorList, plan, loading } = useOrgData();
 
-  const [user, setUser] = useState<any>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
-
-  const [items, setItems] = useState<Item[]>([]);
-  const [vendors, setVendors] = useState<Record<string, Vendor>>({});
   const [filter, setFilter] = useState<"low" | "due" | "all">("low");
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
-  const [plan, setPlan] = useState<Plan>("basic");
-
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showUpsell, setShowUpsell] = useState(false);
 
-  const [planLoaded, setPlanLoaded] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
-
-  const loading = !planLoaded || !dataLoaded;
-
-  // -------------------------
-  // AUTH + ORG + PLAN
-  // -------------------------
-  useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
-      if (!u) return router.push("/login");
-
-      setUser(u);
-
-      onSnapshot(doc(db, "users", u.uid), (snap) => {
-        const org = snap.data()?.orgId;
-        if (!org) return;
-
-        setOrgId(org);
-
-        onSnapshot(doc(db, "organizations", org), (orgSnap) => {
-          const p = orgSnap.data()?.plan;
-          setPlan(
-            p === "pro" || p === "premium" || p === "enterprise"
-              ? p
-              : "basic"
-          );
-          setPlanLoaded(true);
-        });
-      });
-    });
-  }, [router]);
-
-  // -------------------------
-  // ITEMS
-  // -------------------------
-  useEffect(() => {
-    if (!orgId) return;
-
-    return onSnapshot(
-      collection(db, "organizations", orgId, "items"),
-      (snap) => {
-        setItems(
-          snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          })) as Item[]
-        );
-        setDataLoaded(true);
-      }
-    );
-  }, [orgId]);
-
-  // -------------------------
-  // VENDORS
-  // -------------------------
-  useEffect(() => {
-    if (!orgId) return;
-
-    return onSnapshot(
-      collection(db, "organizations", orgId, "vendors"),
-      (snap) => {
-        const map: Record<string, Vendor> = {};
-        snap.docs.forEach((d) => {
-          map[d.id] = { id: d.id, ...(d.data() as any) };
-        });
-        setVendors(map);
-      }
-    );
-  }, [orgId]);
+  // Convert vendor list to map for easy lookup
+  const vendors: Record<string, Vendor> = {};
+  vendorList.forEach((v: any) => {
+    vendors[v.id] = v;
+  });
 
   // -------------------------
   // FILTERING
@@ -153,16 +77,16 @@ export default function ReportsPage() {
       return item.daysLast - diff;
     }
 
-    let result = items;
+    let result = items as any[];
 
     if (filter === "low")
-      result = items.filter((i) => {
+      result = items.filter((i: any) => {
         const d = daysLeft(i);
         return d <= 3 && d > 0;
       });
 
     if (filter === "due")
-      result = items.filter((i) => daysLeft(i) <= 0);
+      result = items.filter((i: any) => daysLeft(i) <= 0);
 
     setFilteredItems(result);
   }, [items, filter]);
@@ -170,13 +94,13 @@ export default function ReportsPage() {
   // -------------------------
   // GROUP STORE PICKUP LIST
   // -------------------------
-  const storeItems = filteredItems.filter((item) => {
+  const storeItems = filteredItems.filter((item: any) => {
     if (!item.vendorId) return false;
     const v = vendors[item.vendorId];
     return v?.hasPhysicalStore === true;
   });
 
-  const grouped = storeItems.reduce((acc: any, item) => {
+  const grouped = storeItems.reduce((acc: any, item: any) => {
     const vendorName =
       (item.vendorId && vendors[item.vendorId]?.name) ||
       "Unknown Vendor";
@@ -189,7 +113,7 @@ export default function ReportsPage() {
   // -------------------------
   // SELECT LOGIC
   // -------------------------
-  const allVisibleIds = filteredItems.map((i) => i.id);
+  const allVisibleIds = filteredItems.map((i: any) => i.id);
   const allVisibleSelected =
     allVisibleIds.length > 0 &&
     allVisibleIds.every((id) => selectedIds.has(id));

@@ -1,22 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { useState } from "react";
+import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot,
-  serverTimestamp,
   query,
   where,
-  getDocs
+  getDocs,
+  serverTimestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOrgData } from "@/lib/useOrgData";
+import { useOrgStore } from "@/lib/orgStore";
 
 type LocationDoc = {
   id: string;
@@ -24,28 +23,11 @@ type LocationDoc = {
   isDepartment?: boolean;
   address?: string | null;
   description?: string | null;
-  createdAt?: any;
 };
 
-
-
 export default function LocationsPage() {
-  const router = useRouter();
+  const { orgId, plan, locations, loading } = useOrgData();
 
-  const [user, setUser] = useState<any>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [locations, setLocations] = useState<any[]>([]);
-
-  const [plan, setPlan] = useState<"basic" | "pro" | "premium" | "enterprise">(
-    "basic"
-  );
-
-  const [orgLoaded, setOrgLoaded] = useState(false);
-  const [locationsLoaded, setLocationsLoaded] = useState(false);
-
-  const loading = !orgLoaded || !locationsLoaded;
-
-  // Modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<LocationDoc | null>(null);
 
@@ -57,58 +39,7 @@ export default function LocationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<LocationDoc | null>(null);
 
   // --------------------------
-  // AUTH + ORG + PLAN + LOCATIONS
-  // --------------------------
-  useEffect(() => {
-    let unsubOrg: any;
-    let unsubLocations: any;
-
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      if (!u) return router.push("/login");
-      setUser(u);
-
-      unsubOrg = onSnapshot(doc(db, "users", u.uid), (snap) => {
-        const data = snap.data();
-        if (!data?.orgId) return;
-
-        setOrgId(data.orgId);
-        setOrgLoaded(true);
-
-        // Watch org → plan
-        const orgRef = doc(db, "organizations", data.orgId);
-        onSnapshot(orgRef, (orgSnap) => {
-          const rawPlan = orgSnap.data()?.plan;
-          setPlan(
-            rawPlan === "premium" || rawPlan === "enterprise"
-              ? rawPlan
-              : rawPlan === "pro"
-              ? "pro"
-              : "basic"
-          );
-        });
-
-        // Watch locations
-        unsubLocations = onSnapshot(
-          collection(db, "organizations", data.orgId, "locations"),
-          (snap) => {
-            setLocations(
-              snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
-            );
-            setLocationsLoaded(true);
-          }
-        );
-      });
-    });
-
-    return () => {
-      unsubAuth();
-      unsubOrg?.();
-      unsubLocations?.();
-    };
-  }, [router]);
-
-  // --------------------------
-  // SAVE LOCATION
+  // SAVE
   // --------------------------
   async function handleSave(e: any) {
     e.preventDefault();
@@ -119,7 +50,7 @@ export default function LocationsPage() {
       address: address.trim() || null,
       description: description.trim() || null,
       isDepartment,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     };
 
     try {
@@ -131,7 +62,7 @@ export default function LocationsPage() {
       } else {
         await addDoc(collection(db, "organizations", orgId, "locations"), {
           ...payload,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         });
       }
 
@@ -152,7 +83,7 @@ export default function LocationsPage() {
   }
 
   // --------------------------
-  // DELETE SAFELY
+  // DELETE (safe)
   // --------------------------
   async function handleDelete(loc: LocationDoc) {
     if (!orgId) return;
@@ -173,6 +104,9 @@ export default function LocationsPage() {
     setDeleteTarget(null);
   }
 
+  // --------------------------
+  // LOADING
+  // --------------------------
   if (loading) {
     return (
       <div className="flex items-center justify-center w-full min-h-screen">
@@ -181,12 +115,11 @@ export default function LocationsPage() {
     );
   }
 
-  // Premium unlock flag
-  const isPremium =
-    plan === "premium" || plan === "enterprise";
-
-  const atLimit =
-    !isPremium && locations.length >= 1;
+  // --------------------------
+  // PLAN LOGIC
+  // --------------------------
+  const isPremium = plan === "premium" || plan === "enterprise";
+  const atLimit = !isPremium && locations.length >= 1;
 
   return (
     <motion.main
@@ -238,8 +171,7 @@ export default function LocationsPage() {
           <button
             className="mt-3 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded"
             onClick={() =>
-              (window.location.href =
-                "/dashboard/settings#billing")
+              (window.location.href = "/dashboard/settings#billing")
             }
           >
             Upgrade Plan
@@ -255,7 +187,7 @@ export default function LocationsPage() {
           </div>
         )}
 
-        {locations.map((l, i) => (
+        {locations.map((l: any, i: any) => (
           <motion.div
             key={l.id}
             initial={{ opacity: 0, y: 8 }}

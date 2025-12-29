@@ -1,100 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PLANS } from "@/lib/plans";
-
-
+import { useOrgStore } from "@/lib/orgStore";
 
 export default function UsersPage() {
   const router = useRouter();
 
-  const [user, setUser] = useState<any>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
-
-  const [plan, setPlan] = useState<keyof typeof PLANS>("basic");
-  const [role, setRole] =
-    useState<"owner" | "admin" | "member">("member");
-
-  const [planLoaded, setPlanLoaded] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(true);
-
-  const [initializing, setInitializing] = useState(true);
+  // 🔥 Global org data
+  const {
+    orgId,
+    plan,
+    role,
+    members,
+    loading,
+  } = useOrgStore();
 
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState("");
 
-  // ----------------------
-  // AUTH + ORG + ROLE + PLAN
-  // ----------------------
+  // Redirect if somehow hits without auth
   useEffect(() => {
-    let unsubUser: any;
-    let unsubOrg: any;
-
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      if (!u) return router.push("/login");
-
-      setUser(u);
-
-      unsubUser = onSnapshot(doc(db, "users", u.uid), (snap) => {
-        const data = snap.data();
-        if (!data?.orgId) return;
-
-        setOrgId(data.orgId);
-        setRole(data.role || "member");
-
-        unsubOrg?.();
-        unsubOrg = onSnapshot(
-          doc(db, "organizations", data.orgId),
-          (orgSnap) => {
-            const p = orgSnap.data()?.plan;
-            setPlan(
-              p === "pro" || p === "premium" || p === "enterprise"
-                ? p
-                : "basic"
-            );
-            setPlanLoaded(true);
-          }
-        );
-
-        setInitializing(false);
-      });
-    });
-
-    return () => {
-      unsubAuth();
-      unsubUser?.();
-      unsubOrg?.();
-    };
+    if (!auth.currentUser) router.push("/login");
   }, [router]);
-
-  // ----------------------
-  // LOAD MEMBERS
-  // ----------------------
-  useEffect(() => {
-    if (!orgId) return;
-
-    return onSnapshot(
-      query(collection(db, "users"), where("orgId", "==", orgId)),
-      (snap) => {
-        setMembers(
-          snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
-        );
-        setLoadingMembers(false);
-      }
-    );
-  }, [orgId]);
 
   // ----------------------
   // SEAT LIMITS
@@ -110,7 +41,7 @@ export default function UsersPage() {
     memberLimit !== Infinity && members.length >= memberLimit;
 
   const adminCount = members.filter(
-    (m) => m.role === "admin" || m.role === "owner"
+    (m: any) => m.role === "admin" || m.role === "owner"
   ).length;
 
   const isLastAdmin = (m: any) =>
@@ -177,7 +108,7 @@ export default function UsersPage() {
   }
 
   async function deleteUser(uid: string, m: any) {
-    if (uid === user?.uid)
+    if (uid === auth.currentUser?.uid)
       return alert("You cannot remove yourself.");
     if (m.role === "owner")
       return alert("You cannot remove the owner.");
@@ -202,9 +133,9 @@ export default function UsersPage() {
   }
 
   // ----------------------
-  // LOADING
+  // LOADING STATE
   // ----------------------
-  if (initializing || !planLoaded) {
+  if (loading || !plan || !role) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin h-12 w-12 border-4 border-sky-600 border-t-transparent rounded-full" />
@@ -236,8 +167,7 @@ export default function UsersPage() {
           </h2>
 
           <p className="text-slate-600 dark:text-slate-400 mt-2">
-            User management is handled by your organization
-            administrator.
+            User management is handled by your organization administrator.
           </p>
         </div>
       )}
@@ -250,8 +180,7 @@ export default function UsersPage() {
           </h2>
 
           <p className="text-slate-600 dark:text-slate-400 mt-2">
-            Your current plan only supports one user. Upgrade to
-            unlock team accounts.
+            Your current plan only supports one user. Upgrade to unlock team accounts.
           </p>
 
           <button
@@ -296,9 +225,11 @@ export default function UsersPage() {
           </div>
 
           <div className="mt-6 space-y-3">
-            {loadingMembers && <p>Loading…</p>}
+            {members.length === 0 && (
+              <p className="text-slate-500">No members yet.</p>
+            )}
 
-            {members.map((m) => (
+            {members.map((m: any) => (
               <div
                 key={m.id}
                 className="p-4 rounded-xl border bg-white dark:bg-slate-800 flex justify-between items-center"
@@ -311,17 +242,14 @@ export default function UsersPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  {role === "owner" &&
-                    m.role !== "owner" && (
-                      <button
-                        onClick={() =>
-                          transferOwnership(m.id)
-                        }
-                        className="px-3 py-1 bg-amber-600 text-white rounded"
-                      >
-                        Transfer
-                      </button>
-                    )}
+                  {role === "owner" && m.role !== "owner" && (
+                    <button
+                      onClick={() => transferOwnership(m.id)}
+                      className="px-3 py-1 bg-amber-600 text-white rounded"
+                    >
+                      Transfer
+                    </button>
+                  )}
 
                   {(role === "owner" || role === "admin") &&
                     m.role !== "owner" && (

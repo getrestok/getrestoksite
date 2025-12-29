@@ -185,7 +185,7 @@ export default function Home() {
       price="$12"
       subtext="per month • $120 billed yearly"
       features={[
-        "Up to 15 items",
+        "Up to 5 items",
         "Email restock alerts",
         "Single location",
         "Admin access",
@@ -200,10 +200,9 @@ export default function Home() {
       price="$29"
       subtext="per month • $290 billed yearly"
       features={[
-        "Unlimited items",
-        "Up to 5 users",
+        "10 items",
+        "Up to 2 users",
         "Priority email alerts",
-        "Supplier tracking",
         "Email support",
       ]}
       cta="Subscribe"
@@ -219,7 +218,8 @@ export default function Home() {
       features={[
         "Unlimited items",
         "Unlimited users",
-        "Up to 3 locations",
+        "Unlimited locations",
+        "SMS Alerts",
         "Advanced analytics",
         "Priority onboarding",
       ]}

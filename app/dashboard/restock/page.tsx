@@ -265,20 +265,24 @@ ${user?.displayName || user?.email || "—"}`;
         Reorder items using your saved vendors.
       </p>
 
-      {/* PRO SAVINGS BANNER */}
-      {isProOrHigher && (
-        <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border flex justify-between items-center">
-          <p className="text-sm">
-            💡 Save money on supplies with Inner Space Systems
-          </p>
-          <button
-            onClick={() => setShowSavingsModal(true)}
-            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
-          >
-            Learn More
-          </button>
-        </div>
-      )}
+      {/*
+        PRO SAVINGS BANNER (commented out)
+
+        Original block removed to avoid rendering. If you want to restore,
+        uncomment and adjust as needed.
+
+        {isProOrHigher && (
+          <div className="mt-6 p-4 rounded-xl bg-sky-50 dark:bg-sky-900/30 border flex justify-between items-center">
+            <p className="text-sm">💡 Save money on supplies with Inner Space Systems</p>
+            <button
+              onClick={() => setShowSavingsModal(true)}
+              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+            >
+              Learn More
+            </button>
+          </div>
+        )}
+      */}
 
       {/* ITEMS LIST */}
       <div className="mt-6 space-y-4">
@@ -394,33 +398,41 @@ ${user?.displayName || user?.email || "—"}`;
         })}
       </div>
 
-      {/* SAVINGS MODAL */}
-      {showSavingsModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
-            <h2 className="text-lg font-semibold">Save on Office Supplies</h2>
-            <p className="text-sm text-slate-700 dark:text-slate-300">
-              You could save money by switching your vendor to
-              <strong> Inner Space Systems</strong>.
-            </p>
+      {
+        /*
+          SAVINGS MODAL (commented out)
 
-            <a
-              href="https://www.issioffice.com/office-supplies"
-              className="block text-center bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
-              target="_blank"
-            >
-              Visit ISSI
-            </a>
+          Original modal preserved here for easy restoration. To re-enable,
+          remove this comment wrapper.
 
-            <button
-              onClick={() => setShowSavingsModal(false)}
-              className="w-full border py-2 rounded-md"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+          {showSavingsModal && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
+                <h2 className="text-lg font-semibold">Save on Office Supplies</h2>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  You could save money by switching your vendor to
+                  <strong> Inner Space Systems</strong>.
+                </p>
+
+                <a
+                  href="https://www.issioffice.com/office-supplies"
+                  className="block text-center bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-md"
+                  target="_blank"
+                >
+                  Visit ISSI
+                </a>
+
+                <button
+                  onClick={() => setShowSavingsModal(false)}
+                  className="w-full border py-2 rounded-md"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        */
+      }
 
       {/* RESTOCK CONFIRM */}
       {showRestockConfirm && restockingItem && orgId && (

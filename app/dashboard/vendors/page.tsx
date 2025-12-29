@@ -1,22 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "../../../lib/firebase";
+import { useState } from "react";
+import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot,
-  serverTimestamp,
   query,
   where,
   getDocs,
+  serverTimestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation";
 import { motion, Variants } from "framer-motion";
+import { useOrgData } from "@/lib/useOrgData";
 
 type VendorDoc = {
   id: string;
@@ -24,23 +22,11 @@ type VendorDoc = {
   email?: string | null;
   website?: string | null;
   hasPhysicalStore?: boolean;
-  createdAt?: any;
 };
 
-
-
 export default function VendorsPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [vendors, setVendors] = useState<VendorDoc[]>([]);
+  const { orgId, vendors, loading } = useOrgData();
 
-  const [orgLoaded, setOrgLoaded] = useState(false);
-  const [vendorsLoaded, setVendorsLoaded] = useState(false);
-
-  const loadingPage = !orgLoaded || !vendorsLoaded;
-
-  // ADD / EDIT
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<VendorDoc | null>(null);
 
@@ -49,7 +35,6 @@ export default function VendorsPage() {
   const [website, setWebsite] = useState("");
   const [hasStore, setHasStore] = useState(false);
 
-  // DELETE CONFIRM
   const [deleteVendor, setDeleteVendor] = useState<VendorDoc | null>(null);
 
   const modalBackdrop: Variants = {
@@ -67,48 +52,6 @@ export default function VendorsPage() {
     },
     exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } },
   };
-
-  // -------------------------
-  // AUTH + LOAD ORG + VENDORS
-  // -------------------------
-  useEffect(() => {
-    let unsubOrg: (() => void) | undefined;
-    let unsubVendors: (() => void) | undefined;
-
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      if (!u) {
-        router.push("/login");
-        return;
-      }
-
-      setUser(u);
-
-      unsubOrg = onSnapshot(doc(db, "users", u.uid), (snap) => {
-        const data = snap.data();
-        if (!data?.orgId) return;
-
-        setOrgId(data.orgId);
-        setOrgLoaded(true);
-
-        unsubVendors?.();
-        unsubVendors = onSnapshot(
-          collection(db, "organizations", data.orgId, "vendors"),
-          (snap) => {
-            setVendors(
-              snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
-            );
-            setVendorsLoaded(true);
-          }
-        );
-      });
-    });
-
-    return () => {
-      unsubAuth();
-      unsubOrg?.();
-      unsubVendors?.();
-    };
-  }, [router]);
 
   // -------------------------
   // SAVE VENDOR
@@ -177,12 +120,12 @@ export default function VendorsPage() {
   }
 
   // -------------------------
-  // LOADING UI
+  // LOADING
   // -------------------------
-  if (loadingPage) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-screen">
-        <div className="animate-spin rounded-full h-14 w-14 border-4 border-sky-500 border-t-transparent" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin h-14 w-14 border-4 border-sky-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -281,121 +224,121 @@ export default function VendorsPage() {
 
       {/* ADD / EDIT MODAL */}
       {showModal && (
-  <motion.div
-    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-    variants={modalBackdrop}
-    initial="hidden"
-    animate="visible"
-    exit="hidden"
-    onClick={resetModal}   // <-- CLICK OUTSIDE CLOSES
-  >
-    <motion.form
-      onSubmit={handleSaveVendor}
-      variants={modalPanel}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4 shadow-2xl"
-      onClick={(e) => e.stopPropagation()}   // <-- PREVENT CLOSE
-    >
-      <h2 className="text-xl font-semibold">
-        {editingVendor ? "Edit Vendor" : "Add Vendor"}
-      </h2>
-
-      <input
-        required
-        className="input"
-        placeholder="Vendor name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-
-      <input
-        className="input"
-        placeholder="Vendor email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-
-      <input
-        className="input"
-        placeholder="Vendor website"
-        value={website}
-        onChange={(e) => setWebsite(e.target.value)}
-      />
-
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={hasStore}
-          onChange={(e) => setHasStore(e.target.checked)}
-        />
-        This vendor has a physical store location
-      </label>
-
-      <div className="flex gap-2 pt-2">
-        <button
-          type="button"
+        <motion.div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
           onClick={resetModal}
-          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
         >
-          Cancel
-        </button>
+          <motion.form
+            onSubmit={handleSaveVendor}
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-semibold">
+              {editingVendor ? "Edit Vendor" : "Add Vendor"}
+            </h2>
 
-        <button
-          type="submit"
-          className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded transition"
-        >
-          Save
-        </button>
-      </div>
-    </motion.form>
-  </motion.div>
-)}
+            <input
+              required
+              className="input"
+              placeholder="Vendor name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+
+            <input
+              className="input"
+              placeholder="Vendor email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <input
+              className="input"
+              placeholder="Vendor website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hasStore}
+                onChange={(e) => setHasStore(e.target.checked)}
+              />
+              This vendor has a physical store location
+            </label>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={resetModal}
+                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="w-1/2 bg-sky-600 hover:bg-sky-700 text-white p-3 rounded transition"
+              >
+                Save
+              </button>
+            </div>
+          </motion.form>
+        </motion.div>
+      )}
 
       {/* DELETE CONFIRM */}
       {deleteVendor && (
-  <motion.div
-    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    variants={modalBackdrop}
-    initial="hidden"
-    animate="visible"
-    exit="hidden"
-    onClick={() => setDeleteVendor(null)}   // <-- CLICK OUTSIDE CLOSES
-  >
-    <motion.div
-      variants={modalPanel}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
-      onClick={(e) => e.stopPropagation()}   // <-- PREVENT CLOSE
-    >
-      <h2 className="text-lg font-semibold">Delete vendor?</h2>
-
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Are you sure you want to delete{" "}
-        <strong>{deleteVendor.name}</strong>? This cannot be undone.
-      </p>
-
-      <div className="flex gap-2">
-        <button
+        <motion.div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          variants={modalBackdrop}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
           onClick={() => setDeleteVendor(null)}
-          className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
         >
-          Cancel
-        </button>
+          <motion.div
+            variants={modalPanel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-sm space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">Delete vendor?</h2>
 
-        <button
-          onClick={() => handleDeleteVendor(deleteVendor)}
-          className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded transition"
-        >
-          Delete
-        </button>
-      </div>
-    </motion.div>
-  </motion.div>
-)}
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Are you sure you want to delete{" "}
+              <strong>{deleteVendor.name}</strong>? This cannot be undone.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteVendor(null)}
+                className="w-1/2 border p-3 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => handleDeleteVendor(deleteVendor)}
+                className="w-1/2 bg-red-600 hover:bg-red-700 text-white p-3 rounded transition"
+              >
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </motion.main>
   );
 }

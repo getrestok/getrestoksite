@@ -1,179 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "../../lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  onSnapshot,
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-type ItemDoc = {
-  id: string;
-  name: string;
-  daysLast: number;
-  createdAt?: any;
-};
-
-type Plan = "basic" | "pro" | "premium" | "enterprise";
-
-
+import { useOrgStore } from "@/lib/orgStore";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardHome() {
   const router = useRouter();
 
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [items, setItems] = useState<ItemDoc[]>([]);
-  const [attentionItems, setAttentionItems] = useState<ItemDoc[]>([]);
+  // ------------------------------
+  // ⭐ Pull everything from global store
+  // ------------------------------
+  const user = typeof window !== "undefined"
+    ? JSON.parse(localStorage.getItem("restok-user") || "null")
+    : null;
+
+  const items = useOrgStore((s) => s.items);
+  const plan = useOrgStore((s) => s.plan);
+  const loading = useOrgStore((s) => s.loading);
+
+  const [attentionItems, setAttentionItems] = useState<any[]>([]);
   const [showAttentionModal, setShowAttentionModal] = useState(false);
-  const [plan, setPlan] = useState<Plan>("basic");
 
-  const [stats, setStats] = useState({
-    totalItems: 0,
-    runningLow: 0,
-    dueToday: 0,
-  });
-
-  const [orgId, setOrgId] = useState<string | null>(null);
-
-  // loading flags so we can show spinner
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingOrg, setLoadingOrg] = useState(true);
-  const [loadingItems, setLoadingItems] = useState(true);
-  const isLoading = loadingUser || loadingOrg || loadingItems;
-
-  // -------------------------
-  // AUTH → USER → ORG → PLAN + ITEMS
-  // -------------------------
-  useEffect(() => {
-    let unsubOrg: (() => void) | null = null;
-    let unsubItems: (() => void) | null = null;
-
-    const unsubAuth = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        setLoadingUser(false);
-        router.push("/login");
-        return;
-      }
-
-      setUser(u);
-      setLoadingUser(false);
-
-      // Load user profile to get orgId
-      const userSnap = await getDoc(doc(db, "users", u.uid));
-      if (!userSnap.exists()) {
-        setProfile(null);
-        setLoadingOrg(false);
-        setLoadingItems(false);
-        return;
-      }
-
-      const userData = userSnap.data();
-      setProfile(userData);
-
-      const org = userData.orgId as string | undefined;
-      if (!org) {
-        setOrgId(null);
-        setLoadingOrg(false);
-        setLoadingItems(false);
-        return;
-      }
-
-      setOrgId(org);
-
-      // Listen to org for plan
-      unsubOrg?.();
-      unsubOrg = onSnapshot(doc(db, "organizations", org), (orgSnap) => {
-        const p = orgSnap.data()?.plan as Plan | undefined;
-        setPlan(
-          p === "pro" || p === "premium" || p === "enterprise"
-            ? p
-            : "basic"
-        );
-        setLoadingOrg(false);
-      });
-
-      // Listen to ORG ITEMS (✅ FIXED PATH)
-      unsubItems?.();
-      unsubItems = onSnapshot(
-        collection(db, "organizations", org, "items"),
-        (snap) => {
-          const data = snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          })) as ItemDoc[];
-
-          setItems(data);
-          calculateStats(data);
-          setLoadingItems(false);
-        }
-      );
-    });
-
-    return () => {
-      unsubAuth();
-      unsubOrg?.();
-      unsubItems?.();
-    };
-  }, [router]);
-
-  // -------------------------
-  // ATTENTION POPUP
-  // -------------------------
-  useEffect(() => {
-    if (!user) return;
-    if (!items.length) return;
-
-    const isProOrHigher =
-      plan === "pro" || plan === "premium" || plan === "enterprise";
-    if (!isProOrHigher) return;
-
-    const key = `restok_attention_dismissed_${user.uid}`;
-    if (typeof window !== "undefined" && sessionStorage.getItem(key)) return;
-
-    const needsAttentionItems = items.filter(needsAttention);
-    if (needsAttentionItems.length === 0) return;
-
-    setAttentionItems(needsAttentionItems);
-    setShowAttentionModal(true);
-  }, [items, plan, user]);
-
-  // -------------------------
-  // HELPERS
-  // -------------------------
-  function needsAttention(item: ItemDoc) {
-    if (!item.createdAt) return false;
+  // ------------------------------
+  // UTILITIES
+  // ------------------------------
+  function needsAttention(item: any) {
+    if (!item.createdAt?.toDate) return false;
 
     const created = item.createdAt.toDate();
     const diffDays = Math.floor(
       (Date.now() - created.getTime()) / 86400000
     );
 
-    // 3 days or less remaining
     return item.daysLast - diffDays <= 3;
   }
 
-  function calculateStats(data: ItemDoc[]) {
+  const stats = useMemo(() => {
     let runningLow = 0;
     let dueToday = 0;
 
-    data.forEach((item) => {
-      if (!item.createdAt) return;
+    items.forEach((item: any) => {
+      if (!item.createdAt?.toDate) return;
 
       const created = item.createdAt.toDate();
       const emptyDate = new Date(created);
@@ -187,34 +55,62 @@ export default function DashboardHome() {
       if (diffDays === 0) dueToday++;
     });
 
-    setStats({
-      totalItems: data.length,
+    return {
+      totalItems: items.length,
       runningLow,
       dueToday,
-    });
-  }
+    };
+  }, [items]);
 
-  const graphData = items
-    .map((item) => {
-      if (!item.createdAt) return null;
-      const created = item.createdAt.toDate();
-      const diff = Math.floor(
-        (Date.now() - created.getTime()) / 86400000
-      );
-      return {
-        name: item.name,
-        daysLeft: Math.max(item.daysLast - diff, 0),
-      };
-    })
-    .filter(Boolean) as { name: string; daysLeft: number }[];
+  const graphData = useMemo(() => {
+    return items
+      .map((item: any) => {
+        if (!item.createdAt?.toDate) return null;
+
+        const created = item.createdAt.toDate();
+        const diff = Math.floor(
+          (Date.now() - created.getTime()) / 86400000
+        );
+
+        return {
+          name: item.name,
+          daysLeft: Math.max(item.daysLast - diff, 0),
+        };
+      })
+      .filter(Boolean);
+  }, [items]);
+
+  // ------------------------------
+  // ATTENTION POPUP
+  // ------------------------------
+  useEffect(() => {
+    if (!items.length) return;
+
+    const isProOrHigher =
+      plan === "pro" || plan === "premium" || plan === "enterprise";
+    if (!isProOrHigher) return;
+
+    if (!user?.uid) return;
+
+    const key = `restok_attention_dismissed_${user.uid}`;
+    if (sessionStorage.getItem(key)) return;
+
+    const needs = items.filter(needsAttention);
+    if (!needs.length) return;
+
+    setAttentionItems(needs);
+    setShowAttentionModal(true);
+  }, [items, plan, user]);
 
   const displayName =
-    profile?.name || user?.displayName || user?.email || "there";
+    user?.displayName ||
+    user?.email?.split("@")[0] ||
+    "there";
 
-  // -------------------------
-  // LOADING UI
-  // -------------------------
-  if (isLoading) {
+  // ------------------------------
+  // LOADING
+  // ------------------------------
+  if (loading) {
     return (
       <motion.main
         className="flex-1 p-10 flex items-center justify-center"
@@ -231,9 +127,9 @@ export default function DashboardHome() {
     );
   }
 
-  // -------------------------
-  // MAIN UI
-  // -------------------------
+  // ------------------------------
+  // UI
+  // ------------------------------
   return (
     <motion.main
       className="flex-1 p-10"
@@ -259,15 +155,10 @@ export default function DashboardHome() {
             Add items to see your restock timeline.
           </p>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={graphData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Line dataKey="daysLeft" stroke="#0ea5e9" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+          <pre className="text-xs text-slate-500">
+            {/* keeping simple instead of charts now */}
+            {JSON.stringify(graphData.slice(0, 5), null, 2)}
+          </pre>
         )}
       </div>
 
@@ -301,12 +192,10 @@ export default function DashboardHome() {
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => {
-                  if (typeof window !== "undefined" && user) {
-                    sessionStorage.setItem(
-                      `restok_attention_dismissed_${user.uid}`,
-                      "true"
-                    );
-                  }
+                  sessionStorage.setItem(
+                    `restok_attention_dismissed_${user?.uid}`,
+                    "true"
+                  );
                   setShowAttentionModal(false);
                 }}
                 className="w-1/2 border rounded py-2"
@@ -316,12 +205,10 @@ export default function DashboardHome() {
 
               <button
                 onClick={() => {
-                  if (typeof window !== "undefined" && user) {
-                    sessionStorage.setItem(
-                      `restok_attention_dismissed_${user.uid}`,
-                      "true"
-                    );
-                  }
+                  sessionStorage.setItem(
+                    `restok_attention_dismissed_${user?.uid}`,
+                    "true"
+                  );
                   const ids = attentionItems.map((i) => i.id).join(",");
                   router.push(`/dashboard/restock?review=${ids}`);
                 }}
@@ -337,7 +224,9 @@ export default function DashboardHome() {
   );
 }
 
-// Small stat card with Tailwind-safe colors
+// ------------------------------
+// STAT CARD
+// ------------------------------
 function Stat({
   label,
   value,
@@ -348,11 +237,11 @@ function Stat({
   tone?: "default" | "amber" | "red";
 }) {
   let colorClass =
-    "text-slate-500"; // default text color if needed elsewhere
-
-  if (tone === "amber") colorClass = "text-amber-500";
-  if (tone === "red") colorClass = "text-red-500";
-  if (tone === "default") colorClass = "text-sky-500";
+    tone === "amber"
+      ? "text-amber-500"
+      : tone === "red"
+      ? "text-red-500"
+      : "text-sky-500";
 
   return (
     <div className="p-6 bg-white dark:bg-slate-800 rounded-xl">

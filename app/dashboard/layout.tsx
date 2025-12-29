@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "../../components/sidebar";
 import BetaNotice from "@/components/BetaNotice";
+import OrgLoader from "./OrgLoader";   // ✅ ADD THIS
 
 export default function DashboardLayout({
   children,
@@ -19,7 +20,6 @@ export default function DashboardLayout({
 
     const saved = localStorage.getItem("restok-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
     const isDark = saved === "dark" || (!saved && prefersDark);
 
     if (isDark) document.documentElement.classList.add("dark");
@@ -43,17 +43,18 @@ export default function DashboardLayout({
     document.title = `${title} – Restok`;
   }, [pathname]);
 
-  // Avoid hydration flash
   if (!mounted) return null;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
-      <Sidebar />
-      <BetaNotice />
+    <OrgLoader>
+      <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+        <Sidebar />
+        <BetaNotice />
 
-      <div className="flex-1 ml-0 md:ml-64">
-        {children}
+        <div className="flex-1 ml-0 md:ml-64">
+          {children}
+        </div>
       </div>
-    </div>
+    </OrgLoader>
   );
 }
