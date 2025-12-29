@@ -4,6 +4,15 @@ import { motion } from "framer-motion";
 import { useOrgStore } from "@/lib/orgStore";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function DashboardHome() {
   const router = useRouter();
@@ -150,17 +159,22 @@ export default function DashboardHome() {
 
       {/* GRAPH */}
       <div className="mt-10 bg-white dark:bg-slate-800 p-6 rounded-xl">
-        {graphData.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Add items to see your restock timeline.
-          </p>
-        ) : (
-          <pre className="text-xs text-slate-500">
-            {/* keeping simple instead of charts now */}
-            {JSON.stringify(graphData.slice(0, 5), null, 2)}
-          </pre>
-        )}
-      </div>
+  {graphData.length === 0 ? (
+    <p className="text-sm text-slate-500">
+      Add items to see your restock timeline.
+    </p>
+  ) : (
+    <ResponsiveContainer width="100%" height={260}>
+      <LineChart data={graphData}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Line dataKey="daysLeft" stroke="#0ea5e9" strokeWidth={3} />
+      </LineChart>
+    </ResponsiveContainer>
+  )}
+</div>
 
       {/* ATTENTION MODAL */}
       {showAttentionModal && (
