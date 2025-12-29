@@ -93,39 +93,43 @@ async function createTester(e: any) {
     if (!authReady) return;
 
     async function load() {
-      const snap = await getDocs(collection(db, "users"));
+  // get ONLY owners
+  const snap = await getDocs(collection(db, "users"));
+  const raw = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as any) }))
+    .filter((u) => u.role === "owner");   // <= ⭐ ONLY owners
 
-      const raw = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      }));
+  const usersWithPlan: InternalUser[] = [];
 
-      const usersWithPlan: InternalUser[] = [];
+  for (const u of raw) {
+    let plan = "none";
 
-      for (const u of raw) {
-        let plan = "none";
+    if (u.orgId) {
+      const orgRef = doc(db, "organizations", u.orgId);
+      const orgSnap = await getDoc(orgRef);
 
-        if (u.orgId) {
-          const orgSnap = await getDoc(
-            doc(db, "organizations", u.orgId)
-          );
-          plan = orgSnap.data()?.plan || "basic";
-        }
+      const orgData = orgSnap.data();
 
-        usersWithPlan.push({
-          id: u.id,
-          email: u.email,
-          name: u.name || u.displayName || "Unknown",
-          phone: u.phone || "",
-          orgId: u.orgId || null,
-          role: u.role || "member",
-          plan,
-        });
-      }
+      // OPTIONAL: hide beta testers completely
+       if (orgData?.beta === true) continue;
 
-      setUsers(usersWithPlan);
-      setLoadingData(false);
+      plan = orgData?.plan || "basic";
     }
+
+    usersWithPlan.push({
+      id: u.id,
+      email: u.email,
+      name: u.name || u.displayName || "Unknown",
+      phone: u.phone || "",
+      orgId: u.orgId || null,
+      role: u.role || "member",
+      plan,
+    });
+  }
+
+  setUsers(usersWithPlan);
+  setLoadingData(false);
+}
 
     load();
   }, [authReady]);

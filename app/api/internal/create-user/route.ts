@@ -1,32 +1,38 @@
 import { NextResponse } from "next/server";
-import admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 
-// Initialize Admin only once
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
   });
 }
 
-const db = getFirestore();
+const db = admin.firestore();
 
 export async function POST(req: Request) {
   try {
-    const authUser = (await admin.auth().verifyIdToken(
-      (await req.json()).token
-    ));
+    const body = await req.json();
+    const { token, email, password, name } = body;
 
-    // Must be logged in & internal admin
-    const userDoc = await db.collection("users").doc(authUser.uid).get();
+    if (!token) {
+      return NextResponse.json({ error: "Missing token" }, { status: 400 });
+    }
 
-    if (!userDoc.exists || userDoc.data()?.internalAdmin !== true) {
+    // Verify requester
+    const decoded = await admin.auth().verifyIdToken(token);
+    const adminUid = decoded.uid;
+
+    const adminDoc = await db.collection("users").doc(adminUid).get();
+
+    if (!adminDoc.exists || adminDoc.data()?.internalAdmin !== true) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { email, password, name } = await req.json();
-
-    // Create Firebase Auth account
+    // Create Firebase Auth user
     const user = await admin.auth().createUser({
       email,
       password,
@@ -44,13 +50,14 @@ export async function POST(req: Request) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Create user Firestore doc
+    // Create user firestore doc
     await db.collection("users").doc(user.uid).set({
       email,
       name,
       orgId: orgRef.id,
       role: "owner",
       internalAdmin: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({
@@ -58,9 +65,8 @@ export async function POST(req: Request) {
       uid: user.uid,
       orgId: orgRef.id,
     });
-
   } catch (err: any) {
-    console.log(err);
+    console.error(err);
     return NextResponse.json(
       { error: err.message || "Failed" },
       { status: 500 }
