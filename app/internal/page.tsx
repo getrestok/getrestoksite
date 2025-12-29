@@ -21,6 +21,7 @@ type InternalUser = {
   orgId?: string | null;
   role?: string;
   plan?: string;
+  disabled?: boolean;
 };
 
 const PLANS = ["basic", "pro", "premium", "enterprise"];
@@ -55,6 +56,35 @@ export default function InternalPanel() {
 
     return () => unsub();
   }, [router]);
+
+  const [showCreate, setShowCreate] = useState(false);
+const [newEmail, setNewEmail] = useState("");
+const [newPass, setNewPass] = useState("");
+const [newName, setNewName] = useState("");
+
+async function createTester(e: any) {
+  e.preventDefault();
+
+  const token = await auth.currentUser?.getIdToken();
+
+  const res = await fetch("/api/internal/create-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: newEmail,
+      password: newPass,
+      name: newName,
+      token,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (data.error) return alert(data.error);
+
+  alert("Tester account created!");
+  window.location.reload();
+}
 
   // -----------------------------------
   // LOAD DATA AFTER AUTH ONLY
@@ -103,16 +133,7 @@ export default function InternalPanel() {
   // -----------------------------------
   // ACTIONS
   // -----------------------------------
-  async function changePlan(user: InternalUser, newPlan: string) {
-    if (!user.orgId) return alert("User has no org");
-
-    await updateDoc(doc(db, "organizations", user.orgId), {
-      plan: newPlan,
-    });
-
-    alert("Plan updated!");
-    window.location.reload();
-  }
+  
 
   async function removeFromOrg(user: InternalUser) {
     if (!user.orgId) return;
@@ -126,16 +147,21 @@ export default function InternalPanel() {
     window.location.reload();
   }
 
-  async function deleteUserAccount(user: InternalUser) {
-    if (!confirm("Delete this user completely?")) return;
+  async function toggleDisable(user: InternalUser, disable: boolean) {
+  const token = await auth.currentUser?.getIdToken();
 
-    await deleteDoc(doc(db, "users", user.id));
+  const res = await fetch("/api/internal/disable-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, uid: user.id, disabled: disable }),
+  });
 
-    alert(
-      "User deleted. (Firebase Auth account must still be removed manually in Console)"
-    );
-    window.location.reload();
-  }
+  const data = await res.json();
+  if (data.error) return alert(data.error);
+
+  alert(disable ? "User disabled" : "User enabled");
+  window.location.reload();
+}
 
   // -----------------------------------
   // LOADING UI
@@ -154,12 +180,15 @@ export default function InternalPanel() {
   return (
     <main className="p-10 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold">
-        Restok Internal Admin Panel
+        Restok Admin Panel
       </h1>
 
-      <p className="text-slate-500 mt-2">
-        Private admin dashboard — NOT visible to users.
-      </p>
+      <button
+  onClick={() => setShowCreate(true)}
+  className="px-4 py-2 bg-sky-600 text-white rounded-lg"
+>
+  + Create Test Account
+</button>
 
       <div className="mt-8 space-y-4">
         {users.map((u) => (
@@ -201,21 +230,9 @@ export default function InternalPanel() {
                   </span>
                 </div>
 
-                {u.orgId && (
-                  <select
-                    className="mt-2 border rounded px-2 py-1"
-                    defaultValue={u.plan}
-                    onChange={(e) =>
-                      changePlan(u, e.target.value)
-                    }
-                  >
-                    {PLANS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                )}
+              
+                  
+                
               </div>
             </div>
 
@@ -230,15 +247,79 @@ export default function InternalPanel() {
               )}
 
               <button
-                onClick={() => deleteUserAccount(u)}
-                className="px-4 py-2 bg-red-600 text-white rounded"
-              >
-                Delete User
-              </button>
+  onClick={() => toggleDisable(u, true)}
+  className="px-4 py-2 bg-red-600 text-white rounded"
+>
+  Disable User
+</button>
+
+{u.disabled && (
+  <button
+    onClick={() => toggleDisable(u, false)}
+    className="px-4 py-2 bg-green-600 text-white rounded"
+  >
+    Enable User
+  </button>
+)}
             </div>
           </div>
         ))}
       </div>
+
+      {showCreate && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+    <form
+      onSubmit={createTester}
+      className="bg-white p-6 rounded-xl w-full max-w-md space-y-4"
+    >
+      <h2 className="text-xl font-semibold">Create Tester</h2>
+
+      <input
+        className="input"
+        placeholder="Name"
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        required
+      />
+
+      <input
+        className="input"
+        placeholder="Email"
+        value={newEmail}
+        onChange={(e) => setNewEmail(e.target.value)}
+        required
+      />
+
+      <input
+        className="input"
+        placeholder="Password"
+        type="password"
+        value={newPass}
+        onChange={(e) => setNewPass(e.target.value)}
+        required
+      />
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowCreate(false)}
+          className="w-1/2 border py-2 rounded"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className="w-1/2 bg-sky-600 text-white py-2 rounded"
+        >
+          Create
+        </button>
+      </div>
+    </form>
+  </div>
+)}
     </main>
+
+    
   );
 }
