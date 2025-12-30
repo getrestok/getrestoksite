@@ -4,17 +4,16 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-function verifyResendSignature(rawBody: string, signature: string, timestamp: string) {
-  const secret = process.env.RESEND_EMAIL_FORWARD_WEBHOOK_SECRET!;
-  const data = `${timestamp}.${rawBody}`;
+const SIGNING_SECRET = process.env.RESEND_EMAIL_FORWARD_WEBHOOK_SECRET!;
 
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(data)
+function verifySignature(rawBody: string, signature: string) {
+  const digest = crypto
+    .createHmac("sha256", SIGNING_SECRET)
+    .update(rawBody, "utf8")
     .digest("hex");
 
   return crypto.timingSafeEqual(
-    Buffer.from(hmac),
+    Buffer.from(digest),
     Buffer.from(signature)
   );
 }
@@ -22,34 +21,37 @@ function verifyResendSignature(rawBody: string, signature: string, timestamp: st
 export async function POST(req: Request) {
   const rawBody = await req.text();
 
-  const signature = req.headers.get("resend-signature") ?? "";
-  const timestamp = req.headers.get("resend-timestamp") ?? "";
-
-  // Reject replay attacks (>5 min old)
-  const FIVE_MIN = 5 * 60 * 1000;
-  if (Date.now() - Number(timestamp) > FIVE_MIN) {
-    return NextResponse.json({ error: "Stale request" }, { status: 400 });
+  const signature = req.headers.get("resend-signature");
+  if (!signature) {
+    return NextResponse.json(
+      { error: "Missing signature" },
+      { status: 400 }
+    );
   }
 
-  // Verify signature
-  const valid = verifyResendSignature(rawBody, signature, timestamp);
-  if (!valid) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  if (!verifySignature(rawBody, signature)) {
+    return NextResponse.json(
+      { error: "Invalid signature" },
+      { status: 401 }
+    );
   }
 
-  // SAFE TO PARSE NOW
+  // Safe to parse now
   const event = JSON.parse(rawBody);
 
-  const { from, to, subject, text, html } = event;
+  if (event.type !== "email.received") {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
 
-  // Forward email
+  const email = event.data;
+
   await resend.emails.send({
     from: "Restok Support <support@getrestok.com>",
     to: "braden@issioffice.com",
-    subject: `FWD: ${subject || "No subject"}`,
-    html: html || `<pre>${text || ""}</pre>`,
-    replyTo: from
+    subject: `FWD: ${email.subject || "No subject"}`,
+    html: email.html || `<pre>${email.text || ""}</pre>`,
+    replyTo: email.from,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }
