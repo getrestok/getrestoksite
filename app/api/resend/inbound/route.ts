@@ -5,7 +5,7 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 function verifyResendSignature(rawBody: string, signature: string, timestamp: string) {
-  const secret = process.env.RESEND_WEBHOOK_SECRET!;
+  const secret = process.env.RESEND_EMAIL_FORWARD_WEBHOOK_SECRET!;
   const data = `${timestamp}.${rawBody}`;
 
   const hmac = crypto
