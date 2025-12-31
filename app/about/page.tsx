@@ -118,7 +118,7 @@ export default function AboutPage() {
             <div className="font-semibold">Company</div>
             <ul className="mt-2 space-y-2">
               <li><a href="/about">About</a></li>
-              <li><a href="/contact">Contact</a></li>
+              <li><a href="/contactus">Contact</a></li>
             </ul>
           </div>
         </div>
