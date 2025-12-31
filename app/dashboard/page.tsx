@@ -13,6 +13,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function DashboardHome() {
   const router = useRouter();
@@ -20,9 +22,17 @@ export default function DashboardHome() {
   // ------------------------------
   // ⭐ Pull everything from global store
   // ------------------------------
-  const user = typeof window !== "undefined"
-    ? JSON.parse(localStorage.getItem("restok-user") || "null")
-    : null;
+ 
+
+const [user, setUser] = useState<any>(null);
+
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, (u) => {
+    setUser(u);
+  });
+
+  return () => unsub();
+}, []);
 
   const items = useOrgStore((s) => s.items);
   const plan = useOrgStore((s) => s.plan);
@@ -111,9 +121,11 @@ export default function DashboardHome() {
     setShowAttentionModal(true);
   }, [items, plan, user]);
 
-  const displayName =
-  user?.email ||
-  user?.displayName ||
+  const currentUser = auth.currentUser;
+
+const displayName =
+  currentUser?.displayName ||
+  currentUser?.email ||
   "there";
 
   // ------------------------------
