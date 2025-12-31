@@ -12,7 +12,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 // PLAN NORMALIZER
 // -------------------------
 function normalizePlan(value: any): "basic" | "pro" | "premium" | "enterprise" {
-  const v = String(value || "").toLowerCase().trim();
+  const v = String(value || "").toLowerCase();
 
   if (v.includes("enterprise")) return "enterprise";
   if (v.includes("premium")) return "premium";
@@ -37,11 +37,11 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("❌ Webhook signature verification failed", err);
+    console.error("❌ Webhook verification failed", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  console.log("🔔 Stripe event:", event.type);
+  console.log("🔔 Stripe event received:", event.type);
 
   // =========================================================================
   // CHECKOUT COMPLETED → CREATE USER + ORG
@@ -60,19 +60,17 @@ export async function POST(req: Request) {
     const pending = pendingSnap.data()!;
     const { email, name, phone, plan } = pending;
 
-    // Prevent duplicates
     const existingUser = await adminAuth
       .getUserByEmail(email)
       .catch(() => null);
 
     if (existingUser) {
-      console.log("ℹ️ User already exists, skipping:", email);
+      console.log("ℹ️ User already exists:", email);
       return NextResponse.json({ received: true });
     }
 
     const normalizedPlan = normalizePlan(plan);
 
-    // Create Firebase Auth user
     const userRecord = await adminAuth.createUser({
       email,
       displayName: name,
@@ -80,33 +78,26 @@ export async function POST(req: Request) {
 
     const orgId = userRecord.uid;
 
-    // ================================
-    // CREATE ORGANIZATION (ID = UID)
-    // ================================
     await adminDb.collection("organizations").doc(orgId).set({
       name: name || "My Organization",
       ownerId: orgId,
+      orgId,
       plan: normalizedPlan,
+      active: true,
       stripeCustomerId: session.customer ?? null,
       stripeSubscriptionId: session.subscription ?? null,
       createdAt: Timestamp.now(),
     });
 
-    // ================================
-    // CREATE USER PROFILE
-    // ================================
     await adminDb.collection("users").doc(orgId).set({
       name,
       email,
       phone: phone || "",
-      orgId,                // <-- ALWAYS MATCHES
+      orgId,
       role: "admin",
       createdAt: Timestamp.now(),
     });
 
-    // ================================
-    // PASSWORD TOKEN
-    // ================================
     const token = crypto.randomBytes(32).toString("hex");
 
     await adminDb.collection("passwordSetupTokens").doc(token).set({
@@ -120,7 +111,6 @@ export async function POST(req: Request) {
 
     const setupUrl = `https://getrestok.com/set-password?token=${token}`;
 
-    // EMAIL
     await resend.emails.send({
       from: "Restok <accounts@getrestok.com>",
       to: email,
@@ -132,7 +122,7 @@ export async function POST(req: Request) {
   }
 
   // =========================================================================
-  // SUBSCRIPTION UPDATED → KEEP PLAN IN SYNC
+  // SUBSCRIPTION UPDATED → KEEP PLAN & ACTIVE STATUS IN SYNC
   // =========================================================================
   if (event.type === "customer.subscription.updated") {
     const sub = event.data.object as Stripe.Subscription;
@@ -145,7 +135,6 @@ export async function POST(req: Request) {
     const cleanPlan = normalizePlan(nickname);
     const customerId = sub.customer as string;
 
-    // Find org by stripe customer
     const orgSnap = await adminDb
       .collection("organizations")
       .where("stripeCustomerId", "==", customerId)
@@ -155,20 +144,37 @@ export async function POST(req: Request) {
     if (!orgSnap.empty) {
       await orgSnap.docs[0].ref.update({
         plan: cleanPlan,
+        active: true,
         stripeSubscriptionId: sub.id,
       });
 
-      console.log("✅ Org plan updated →", cleanPlan);
+      console.log("✅ Subscription updated → plan:", cleanPlan);
+    }
+  }
+
+  // =========================================================================
+  // SUBSCRIPTION CANCELED → DEACTIVATE ACCOUNT
+  // =========================================================================
+  if (event.type === "customer.subscription.deleted") {
+    const sub = event.data.object as Stripe.Subscription;
+    const customerId = sub.customer as string;
+
+    const orgSnap = await adminDb
+      .collection("organizations")
+      .where("stripeCustomerId", "==", customerId)
+      .limit(1)
+      .get();
+
+    if (!orgSnap.empty) {
+      await orgSnap.docs[0].ref.update({
+        active: false,
+        canceledAt: Timestamp.now(),
+        stripeSubscriptionId: null,
+      });
+
+      console.log("❌ Subscription canceled — org deactivated");
     } else {
-      console.warn("⚠️ No org found for subscription update — creating fallback");
-
-      // If this ever happens, we create the org so app doesn't break
-      await adminDb.collection("organizations").add({
-        plan: cleanPlan,
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: sub.id,
-        createdAt: Timestamp.now(),
-      });
+      console.warn("⚠️ No org found for canceled subscription");
     }
   }
 
