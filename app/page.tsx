@@ -182,13 +182,14 @@ export default function Home() {
     {/* BASIC */}
     <PricingTier
       name="Basic"
-      price="$12"
-      subtext="per month • $120 billed yearly"
+      price="$5.99"
+      subtext="per month • $65 billed yearly ($5.42/mo)"
       features={[
         "Up to 5 items",
-        "Email restock alerts",
-        "Single location",
-        "Admin access",
+        "1 user",
+        "1 location",
+        "Email alerts",
+        "Basic reports",
       ]}
       cta="Get Started"
       href="/signup?plan=basic"
@@ -197,13 +198,13 @@ export default function Home() {
     {/* PRO (HIGHLIGHTED) */}
     <PricingTier
       name="Pro"
-      price="$29"
-      subtext="per month • $290 billed yearly"
+      price="$19"
+      subtext="per month • $192 billed yearly ($16/mo)"
       features={[
         "10 items",
-        "Up to 2 users",
-        "Priority email alerts",
-        "Email support",
+        "2 users",
+        "2 locations",
+        "Improved reports and metrics",
       ]}
       cta="Subscribe"
       href="/signup?plan=pro"
@@ -213,15 +214,15 @@ export default function Home() {
     {/* PREMIUM */}
     <PricingTier
       name="Premium"
-      price="$59"
-      subtext="per month • $590 billed yearly"
+      price="$39"
+      subtext="per month • $396 billed yearly ($33/mo)"
       features={[
         "Unlimited items",
         "Unlimited users",
         "Unlimited locations",
         "SMS Alerts",
-        "Advanced analytics",
-        "Priority onboarding",
+        "Advanced reports and metrics",
+        "Priority onboarding and support",
       ]}
       cta="Subscribe"
       href="/signup?plan=premium"

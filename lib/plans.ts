@@ -5,7 +5,7 @@ export const PLANS = {
     priceMonthly: 1200, // cents
     priceYearly: 12000,
     limits: {
-      items: 15,
+      items: 5,
       users: 1,
       locations: 1,
     },
@@ -16,8 +16,8 @@ export const PLANS = {
     priceMonthly: 2900,
     priceYearly: 29000,
     limits: {
-      items: Infinity,
-      users: 5,
+      items: 10,
+      users: 2,
       locations: 1,
     },
   },
@@ -29,7 +29,7 @@ export const PLANS = {
     limits: {
       items: Infinity,
       users: Infinity,
-      locations: 3,
+      locations: Infinity,
     },
   },
   enterprise: {

@@ -90,37 +90,42 @@ export default function Sidebar() {
   return (
     <>
       {/* ---------- SIDEBAR ---------- */}
-      <aside className="
-        hidden md:flex fixed left-0 top-0 h-screen w-64
-        bg-white dark:bg-slate-900
-        border-r border-slate-200 dark:border-slate-700
-        p-6 flex-col
-      ">
-        {/* Logo */}
-        <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
+      <aside
+  className="
+    hidden md:flex fixed left-0 top-0 h-screen w-64
+    bg-white dark:bg-slate-900
+    border-r border-slate-200 dark:border-slate-700
+    p-6 flex-col
+  "
+>
+  {/* Top scrollable area */}
+  <div className="flex-1 overflow-y-auto">
+    {/* Logo */}
+    <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
 
-        <motion.h1
-          className="text-2xl font-bold mb-8 text-slate-800 dark:text-slate-100"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          Restok
-        </motion.h1>
+    <motion.h1
+      className="text-2xl font-bold mb-8 text-slate-800 dark:text-slate-100"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+    >
+      Restok
+    </motion.h1>
 
-        {/* Navigation */}
-<nav className="flex flex-col gap-2 text-slate-700 dark:text-slate-200">
-  <NavItem href="/dashboard" label="Dashboard" emoji="📊" />
-  <NavItem href="/dashboard/items" label="Items" emoji="📦" />
-  <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
-  <NavItem href="/dashboard/locations" label="Locations" emoji="📍" />
-  <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
-  <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
-  <NavItem href="/dashboard/users" label="Users" emoji="👥" />
-  <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
-</nav>
+    {/* Navigation */}
+    <nav className="flex flex-col gap-2 text-slate-700 dark:text-slate-200">
+      <NavItem href="/dashboard" label="Dashboard" emoji="📊" />
+      <NavItem href="/dashboard/items" label="Items" emoji="📦" />
+      <NavItem href="/dashboard/vendors" label="Vendors" emoji="🏪" />
+      <NavItem href="/dashboard/locations" label="Locations" emoji="📍" />
+      <NavItem href="/dashboard/restock" label="Restock" emoji="🧾" />
+      <NavItem href="/dashboard/reports" label="Reports" emoji="📝" />
+      <NavItem href="/dashboard/users" label="Users" emoji="👥" />
+      <NavItem href="/dashboard/settings" label="Settings" emoji="⚙️" />
+    </nav>
+  </div>
 
         {/* ---------- Bottom ---------- */}
-        <div className="mt-auto flex flex-col gap-3 pt-6">
+        <div className="flex flex-col gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
           {/* PLAN */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-sm">
             <div className="flex items-center justify-between">
@@ -159,30 +164,30 @@ export default function Sidebar() {
 
           {/* Support button */}
           <button
-            onClick={() => setShowSupport(true)}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            💬 Support
-          </button>
+      onClick={() => setShowSupport(true)}
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+    >
+      💬 Support
+    </button>
 
           {/* Logout */}
           <motion.button
-            onClick={async () => {
-              try {
-                await auth.signOut();
-                await fetch("/api/auth/logout", { method: "POST" });
-                window.location.href = "/login";
-              } catch (err) {
-                console.error("Logout failed", err);
-                alert("Failed to log out");
-              }
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
-          >
-            Log Out
-          </motion.button>
+      onClick={async () => {
+        try {
+          await auth.signOut();
+          await fetch("/api/auth/logout", { method: "POST" });
+          window.location.href = "/login";
+        } catch (err) {
+          console.error("Logout failed", err);
+          alert("Failed to log out");
+        }
+      }}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
+    >
+      Log Out
+    </motion.button>
         </div>
       </aside>
 
