@@ -86,7 +86,6 @@ export function buildPickupPdf(vendorGroups: Record<string, any[]>) {
                     <div class="checkbox"></div>
                     ${item.name}
                   </div>
-                  <small>${item.daysLast ?? ""}</small>
                 </div>
               `
               )

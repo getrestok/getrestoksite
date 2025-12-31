@@ -42,6 +42,11 @@ export default function ItemsPage() {
   const [items, setItems] = useState<ItemDoc[]>([]);
   const [vendors, setVendors] = useState<VendorDoc[]>([]);
 
+  // Add Vendor Modal
+const [showVendorModal, setShowVendorModal] = useState(false);
+const [newVendorName, setNewVendorName] = useState("");
+const [vendorSaving, setVendorSaving] = useState(false);
+
   const [planLoaded, setPlanLoaded] = useState(false);
   const [itemsLoaded, setItemsLoaded] = useState(false);
 
@@ -209,6 +214,31 @@ export default function ItemsPage() {
     setShowEdit(false);
     setEditItem(null);
   }
+
+  async function handleCreateVendor(e: any) {
+  e.preventDefault();
+  if (!orgId || !newVendorName.trim()) return;
+
+  try {
+    setVendorSaving(true);
+
+    const ref = await addDoc(
+      collection(db, "organizations", orgId, "vendors"),
+      {
+        name: newVendorName.trim(),
+        createdAt: serverTimestamp(),
+      }
+    );
+
+    // auto select it in the item modal
+    setVendorId(ref.id);
+
+    setShowVendorModal(false);
+    setNewVendorName("");
+  } finally {
+    setVendorSaving(false);
+  }
+}
 
   async function handleDeleteConfirmed() {
     if (!orgId || !deleteItem) return;
@@ -459,18 +489,29 @@ export default function ItemsPage() {
   <label className="block text-sm font-medium mb-1">
     Supplier
   </label>
-  <select
-    className="input"
-    value={vendorId}
-    onChange={(e) => setVendorId(e.target.value)}
-  >
-    <option value="">Select supplier</option>
-    {vendors.map((v) => (
-      <option key={v.id} value={v.id}>
-        {v.name}
-      </option>
-    ))}
-  </select>
+
+  <div className="flex gap-2">
+    <select
+      className="input flex-1"
+      value={vendorId}
+      onChange={(e) => setVendorId(e.target.value)}
+    >
+      <option value="">Select supplier</option>
+      {vendors.map((v) => (
+        <option key={v.id} value={v.id}>
+          {v.name}
+        </option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      onClick={() => setShowVendorModal(true)}
+      className="px-3 rounded-lg border bg-slate-100 hover:bg-slate-200"
+    >
+      + Add
+    </button>
+  </div>
 </div>
 
               <div className="flex gap-2">
@@ -578,24 +619,33 @@ export default function ItemsPage() {
   <label className="block text-sm font-medium mb-1">
     Supplier
   </label>
-  <select
-    className="input"
-    value={editItem.vendorId || ""}
-    onChange={(e) =>
-      setEditItem({
-        ...editItem,
-        vendorId: e.target.value,
-      })
-    }
-  >
-    <option value="">Select supplier</option>
-    {vendors.map((v) => (
-      <option key={v.id} value={v.id}>
-        {v.name}
-      </option>
-    ))}
-  </select>
+
+  <div className="flex gap-2">
+    <select
+      className="input flex-1"
+      value={editItem.vendorId || ""}
+      onChange={(e) =>
+        setEditItem({ ...editItem!, vendorId: e.target.value })
+      }
+    >
+      <option value="">Select supplier</option>
+      {vendors.map((v) => (
+        <option key={v.id} value={v.id}>
+          {v.name}
+        </option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      onClick={() => setShowVendorModal(true)}
+      className="px-3 rounded-lg border bg-slate-100 hover:bg-slate-200"
+    >
+      + Add
+    </button>
+  </div>
 </div>
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -661,6 +711,63 @@ export default function ItemsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+{showVendorModal && (
+  <motion.div
+    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    onClick={() => setShowVendorModal(false)}
+  >
+    <motion.form
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onSubmit={handleCreateVendor}
+      onClick={(e) => e.stopPropagation()}
+      className="bg-white dark:bg-slate-800 p-6 rounded-xl w-full max-w-md space-y-4"
+    >
+      <h2 className="text-xl font-semibold">
+        Add Supplier
+      </h2>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Supplier Name
+        </label>
+        <input
+          className="input"
+          value={newVendorName}
+          onChange={(e) => setNewVendorName(e.target.value)}
+          required
+          placeholder="Example: Staples, Amazon, Local Vendor"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowVendorModal(false)}
+          className="w-1/2 border p-3 rounded"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          disabled={vendorSaving}
+          className="w-1/2 bg-sky-600 text-white p-3 rounded"
+        >
+          {vendorSaving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </motion.form>
+  </motion.div>
+)}
+</AnimatePresence>
     </motion.main>
   );
 }
