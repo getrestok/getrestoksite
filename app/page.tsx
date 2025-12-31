@@ -80,7 +80,7 @@ export default function Home() {
               Never forget to reorder the things your business depends on.
             </h1>
             <p className="mt-4 text-lg text-slate-600">
-              Restok helps small businesses 
+              Restok helps small businesses keep track of anything they reorder regularly - using the vendors they already trust.
             </p>
 
             <div className="mt-6 flex gap-3">

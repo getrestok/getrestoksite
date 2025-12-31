@@ -23,7 +23,8 @@ type ItemDoc = {
   daysLast: number;
   createdAt?: any;
   createdByName?: string;
-  description?: string; // NEW
+  description?: string;
+  sku?: string;
 };
 
 type VendorDoc = {
@@ -51,7 +52,8 @@ export default function ItemsPage() {
   const [name, setName] = useState("");
   const [daysLast, setDaysLast] = useState("");
   const [vendorId, setVendorId] = useState("");
-  const [description, setDescription] = useState(""); // NEW
+  const [description, setDescription] = useState(""); 
+  const [sku, setSku] = useState(""); 
 
   // ---------- Edit Modal ----------
   const [showEdit, setShowEdit] = useState(false);
@@ -175,7 +177,8 @@ export default function ItemsPage() {
       name,
       vendorId: vendorId || null,
       daysLast: Number(daysLast),
-      description: description || "", // NEW
+      description: description || "",
+      sku: sku || "",
       createdAt: serverTimestamp(),
       createdByName: user.displayName || user.email,
     });
@@ -185,6 +188,7 @@ export default function ItemsPage() {
     setDaysLast("");
     setVendorId("");
     setDescription("");
+    setSku("");
   }
 
   async function handleEdit(e: any) {
@@ -197,7 +201,8 @@ export default function ItemsPage() {
         name: editItem.name,
         vendorId: editItem.vendorId || null,
         daysLast: Number(editItem.daysLast),
-        description: editItem.description || "", // NEW
+        description: editItem.description || "",
+        sku: editItem.sku || "", 
       }
     );
 
@@ -233,7 +238,7 @@ export default function ItemsPage() {
   const planConfig = PLANS[plan];
   const itemLimit =
     plan === "basic"
-      ? 5 // 🔥 your request
+      ? 5 
       : "limits" in planConfig
       ? planConfig.limits.items
       : Infinity;
@@ -440,6 +445,18 @@ export default function ItemsPage() {
 
 <div>
   <label className="block text-sm font-medium mb-1">
+    SKU / Item #
+  </label>
+  <input
+    className="input"
+    placeholder="Optional item or vendor SKU"
+    value={sku}
+    onChange={(e) => setSku(e.target.value)}
+  />
+</div>
+
+<div>
+  <label className="block text-sm font-medium mb-1">
     Supplier
   </label>
   <select
@@ -542,6 +559,18 @@ export default function ItemsPage() {
         description: e.target.value,
       })
     }
+  />
+</div>
+
+<div>
+  <label className="block text-sm font-medium mb-1">
+    SKU / Item #
+  </label>
+  <input
+    className="input"
+    placeholder="Optional item or vendor SKU"
+    value={sku}
+    onChange={(e) => setSku(e.target.value)}
   />
 </div>
 
