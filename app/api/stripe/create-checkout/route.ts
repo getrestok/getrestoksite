@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebaseAdmin";
 
+type Plan = "basic" | "pro" | "premium" ;
+type Interval = "monthly" | "yearly";
+
 export async function POST(req: Request) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -11,16 +14,15 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!process.env.STRIPE_PRO_PRICE_ID) {
-      return NextResponse.json(
-        { error: "Stripe price not configured" },
-        { status: 500 }
-      );
-    }
-
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    const { email, name, phone, plan } = await req.json();
+    const body = await req.json();
+
+    const email: string | undefined = body.email;
+    const name: string | undefined = body.name;
+    const phone: string | undefined = body.phone;
+    const plan = (body.plan ?? "") as Plan;
+    const interval = (body.interval ?? "monthly") as Interval;
 
     if (!email || !plan) {
       return NextResponse.json(
@@ -29,50 +31,63 @@ export async function POST(req: Request) {
       );
     }
 
-    const priceMap: Record<string, string | undefined> = {
-  pro: process.env.STRIPE_PRO_PRICE_ID,
-  premium: process.env.STRIPE_PREMIUM_PRICE_ID,
-  enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID,
-};
+    const priceMap: Record<Plan, Record<Interval, string | undefined>> = {
+      basic: {
+        monthly: process.env.STRIPE_MONTHLY_BASIC_PRICE_ID,
+        yearly: process.env.STRIPE_YEARLY_BASIC_PRICE_ID,
+      },
+      pro: {
+        monthly: process.env.STRIPE_MONTHLY_PRO_PRICE_ID,
+        yearly: process.env.STRIPE_YEARLY_PRO_PRICE_ID,
+      },
+      premium: {
+        monthly: process.env.STRIPE_MONTHLY_PREMIUM_PRICE_ID,
+        yearly: process.env.STRIPE_YEARLY_PREMIUM_PRICE_ID,
+      },
+      //enterprise: {         ADD LATER 
+      //  monthly: process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID,
+      //  yearly: process.env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID,
+    //  },
+    };
 
-const price = priceMap[plan];
+    const price = priceMap[plan]?.[interval];
 
-if (!price) {
-  return NextResponse.json(
-    { error: "Invalid plan selected" },
-    { status: 400 }
-  );
-}
+    if (!price) {
+      return NextResponse.json(
+        { error: "Invalid plan or billing interval" },
+        { status: 400 }
+      );
+    }
 
-    // ✅ Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-  mode: "subscription",
-  customer_email: email,
+      mode: "subscription",
+      customer_email: email,
 
-  metadata: {
-    plan: plan.toLowerCase(),   // normalize 👌
-    email,
-    name: name || "",
-    phone: phone || "",
-  },
+      metadata: {
+        plan,
+        interval,
+        email,
+        name: name || "",
+        phone: phone || "",
+      },
 
-  line_items: [
-    {
-      price,
-      quantity: 1,
-    },
-  ],
+      line_items: [
+        {
+          price,
+          quantity: 1,
+        },
+      ],
 
-  success_url: "https://getrestok.com/login?setup=1",
-  cancel_url: "https://getrestok.com/signup",
-});
+      success_url: "https://getrestok.com/login?setup=1",
+      cancel_url: "https://getrestok.com/signup",
+    });
 
-    // ✅ Store TEMP signup data (NO PASSWORD)
     await adminDb.collection("pendingSignups").doc(session.id).set({
       email,
       name: name || "",
       phone: phone || "",
       plan,
+      interval,
       createdAt: new Date(),
     });
 

@@ -29,8 +29,8 @@ const [selectedPlan, setSelectedPlan] =
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,10 +49,11 @@ const [selectedPlan, setSelectedPlan] =
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        password,
         name,
         orgName,
+        phone,
         plan: selectedPlan,
+        interval,
       }),
     });
 
@@ -96,7 +97,7 @@ const [selectedPlan, setSelectedPlan] =
         <p className="text-center text-sm text-zinc-500 mt-2">
           Plan selected:{" "}
           <span className="font-medium capitalize">
-            {PLANS[selectedPlan].name}
+            {PLANS[selectedPlan].name} - {interval === "monthly" ? "Monthly" : "Yearly"}
           </span>
         </p>
 
@@ -120,13 +121,30 @@ const [selectedPlan, setSelectedPlan] =
               }
               className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
             >
-              <option value="basic">Basic — 15 items</option>
-              <option value="pro">Pro — Unlimited items</option>
+              <option value="basic">Basic — 5 items</option>
+              <option value="pro">Pro — 10 items/2 users</option>
               <option value="premium">
-                Premium — Unlimited + multi-location
+                Premium — Unlimited items/users/locations
               </option>
             </select>
           </div>
+
+          {/* BILLING INTERVAL */}
+<div>
+  <label className="block text-sm font-medium text-zinc-700">
+    Billing Cycle
+  </label>
+  <select
+    value={interval}
+    onChange={(e) =>
+      setInterval(e.target.value as "monthly" | "yearly")
+    }
+    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+  >
+    <option value="monthly">Monthly — billed every month</option>
+    <option value="yearly">Yearly — billed annually</option>
+  </select>
+</div>
 
           {/* FULL NAME */}
           <div>
@@ -181,21 +199,6 @@ const [selectedPlan, setSelectedPlan] =
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
-            />
-          </div>
-
-          {/* PASSWORD */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
             />
           </div>

@@ -112,9 +112,9 @@ export default function DashboardHome() {
   }, [items, plan, user]);
 
   const displayName =
-    user?.displayName ||
-    user?.email?.split("@")[0] ||
-    "there";
+  user?.email ||
+  user?.displayName ||
+  "there";
 
   // ------------------------------
   // LOADING
