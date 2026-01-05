@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
@@ -12,15 +12,27 @@ import {
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
+type Plan = "basic" | "pro" | "premium" | "enterprise";
+type OrgStatus = "active" | "paused" | "canceled";
+
 type InternalUser = {
-  id: string;
+  // user doc
+  id: string; // uid
   email: string;
   name?: string;
   phone?: string;
   orgId?: string | null;
   role?: string;
-  plan?: string;
   disabled?: boolean;
+
+  // org doc (enriched)
+  plan?: Plan;
+  status?: OrgStatus;
+  manualPlanOverride?: boolean;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  orgName?: string;
+  internalNotes?: string;
 };
 
 export default function InternalPanel() {
@@ -30,9 +42,9 @@ export default function InternalPanel() {
   const [authReady, setAuthReady] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
-  // -----------------------------------
-  // AUTH CHECK — MUST BE INTERNAL
-  // -----------------------------------
+  // -----------------------------
+  // AUTH CHECK — INTERNAL ADMIN ONLY (CUSTOM CLAIM)
+  // -----------------------------
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -40,25 +52,13 @@ export default function InternalPanel() {
         return;
       }
 
-      useEffect(() => {
-  const unsub = onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      router.replace("/internal/login");
-      return;
-    }
+      // Force refresh so new claims apply immediately
+      const token = await user.getIdTokenResult(true);
 
-    const token = await user.getIdTokenResult(true);
-
-    if (!token.claims.internalAdmin) {
-      router.replace("/dashboard");
-      return;
-    }
-
-    setAuthReady(true);
-  });
-
-  return () => unsub();
-}, [router]);
+      if (!token.claims.internalAdmin) {
+        router.replace("/dashboard");
+        return;
+      }
 
       setAuthReady(true);
     });
@@ -66,9 +66,9 @@ export default function InternalPanel() {
     return () => unsub();
   }, [router]);
 
-  // -----------------------------------
+  // -----------------------------
   // CREATE TEST USER MODAL
-  // -----------------------------------
+  // -----------------------------
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
@@ -78,6 +78,7 @@ export default function InternalPanel() {
     e.preventDefault();
 
     const token = await auth.currentUser?.getIdToken();
+    if (!token) return alert("Not authenticated.");
 
     const res = await fetch("/api/internal/create-user", {
       method: "POST",
@@ -91,64 +92,83 @@ export default function InternalPanel() {
     });
 
     const data = await res.json();
-    if (data.error) return alert(data.error);
+    if (!res.ok) return alert(data.error || "Failed to create user");
 
     alert("Tester account created!");
-    window.location.reload();
+    setShowCreate(false);
+    setNewEmail("");
+    setNewPass("");
+    setNewName("");
+    await loadUsers(); // refresh without full reload
   }
 
-  // -----------------------------------
-  // LOAD DATA (ONLY OWNERS)
-  // -----------------------------------
+  // -----------------------------
+  // LOAD DATA
+  // - We list Firestore users
+  // - Then enrich each OWNER with org fields (plan/status/stripe IDs/etc)
+  // -----------------------------
+  async function loadUsers() {
+    setLoadingData(true);
+
+    const snap = await getDocs(collection(db, "users"));
+    const raw = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }));
+
+    const owners: InternalUser[] = [];
+
+    // NOTE: Simple + readable. If you ever get lots of users, we can optimize.
+    for (const u of raw) {
+      if (!u.orgId) continue;
+
+      const orgRef = doc(db, "organizations", u.orgId);
+      const orgSnap = await getDoc(orgRef);
+      if (!orgSnap.exists()) continue;
+
+      const org: any = orgSnap.data();
+
+      // Only show REAL org owners to avoid duplicates (members/admins)
+      if (org.ownerId !== u.id) continue;
+
+      owners.push({
+        id: u.id,
+        email: u.email,
+        name: u.name || u.displayName || "Unknown",
+        phone: u.phone || "",
+        orgId: u.orgId,
+        role: u.role || "owner",
+        disabled: !!u.disabled,
+
+        // org enrichment
+        orgName: org.name || "",
+        plan: (org.plan as Plan) || "basic",
+        status: (org.status as OrgStatus) || "active",
+        manualPlanOverride: !!org.manualPlanOverride,
+        stripeCustomerId: org.stripeCustomerId ?? null,
+        stripeSubscriptionId: org.stripeSubscriptionId ?? null,
+        internalNotes: org.internalNotes || "",
+      });
+    }
+
+    // Sort newest-ish by email for sanity
+    owners.sort((a, b) => a.email.localeCompare(b.email));
+
+    setUsers(owners);
+    setLoadingData(false);
+  }
+
   useEffect(() => {
     if (!authReady) return;
-
-    async function load() {
-  const snap = await getDocs(collection(db, "users"));
-
-  const raw = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as any),
-  }));
-
-  const usersWithPlan: InternalUser[] = [];
-
-  for (const u of raw) {
-    if (!u.orgId) continue; // must have org
-
-    const orgRef = doc(db, "organizations", u.orgId);
-    const orgSnap = await getDoc(orgRef);
-
-    if (!orgSnap.exists()) continue;
-
-    const org = orgSnap.data();
-
-    // ⭐ THIS IS THE REAL OWNER CHECK
-    if (org.ownerId !== u.id) continue;
-
-    usersWithPlan.push({
-      id: u.id,
-      email: u.email,
-      name: u.name || u.displayName || "Unknown",
-      phone: u.phone || "",
-      orgId: u.orgId,
-      role: u.role || "owner",
-      plan: org.plan || "basic",
-    });
-  }
-
-  setUsers(usersWithPlan);
-  setLoadingData(false);
-}
-
-    load();
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady]);
 
-  // -----------------------------------
+  // -----------------------------
   // ACTIONS
-  // -----------------------------------
+  // -----------------------------
   async function removeFromOrg(user: InternalUser) {
-    if (!user.orgId) return;
+    if (!confirm(`Remove ${user.email} from their org?`)) return;
 
     await updateDoc(doc(db, "users", user.id), {
       orgId: null,
@@ -156,11 +176,12 @@ export default function InternalPanel() {
     });
 
     alert("User removed from org");
-    window.location.reload();
+    await loadUsers();
   }
 
   async function toggleDisable(user: InternalUser, disable: boolean) {
     const token = await auth.currentUser?.getIdToken();
+    if (!token) return alert("Not authenticated.");
 
     const res = await fetch("/api/internal/disable-user", {
       method: "POST",
@@ -169,10 +190,83 @@ export default function InternalPanel() {
     });
 
     const data = await res.json();
-    if (data.error) return alert(data.error);
+    if (!res.ok) return alert(data.error || "Failed");
 
     alert(disable ? "User disabled" : "User enabled");
-    window.location.reload();
+    await loadUsers();
+  }
+
+  async function deleteUser(user: InternalUser) {
+    const ok = confirm(
+      `DELETE ${user.email}?\n\nThis will delete:\n- Firestore user doc\n- Firebase Auth user\n- Their org (if they own it)\n\nThis cannot be undone.`
+    );
+    if (!ok) return;
+
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return alert("Not authenticated.");
+
+    const res = await fetch("/api/internal/delete-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, uid: user.id }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || "Failed to delete user");
+
+    alert("User deleted");
+    await loadUsers();
+  }
+
+  async function updatePlan(user: InternalUser, newPlan: Plan) {
+    if (!user.orgId) return alert("No orgId on this user.");
+
+    const ok = confirm(
+      `Set ${user.email} to ${newPlan.toUpperCase()}?\n\nThis enables manual override so Stripe webhooks won't overwrite the plan.`
+    );
+    if (!ok) return;
+
+    await updateDoc(doc(db, "organizations", user.orgId), {
+      plan: newPlan,
+      manualPlanOverride: true,
+      status: "active",
+    });
+
+    alert("Plan updated (manual override enabled).");
+    await loadUsers();
+  }
+
+  async function updateStatus(user: InternalUser, status: OrgStatus) {
+    if (!user.orgId) return alert("No orgId on this user.");
+
+    const ok = confirm(`Set org status to "${status}" for ${user.email}?`);
+    if (!ok) return;
+
+    await updateDoc(doc(db, "organizations", user.orgId), { status });
+    await loadUsers();
+  }
+
+  async function toggleManualOverride(user: InternalUser, enabled: boolean) {
+    if (!user.orgId) return alert("No orgId on this user.");
+
+    await updateDoc(doc(db, "organizations", user.orgId), {
+      manualPlanOverride: enabled,
+    });
+
+    await loadUsers();
+  }
+
+  async function saveNotes(user: InternalUser, notes: string) {
+    if (!user.orgId) return;
+
+    await updateDoc(doc(db, "organizations", user.orgId), {
+      internalNotes: notes,
+    });
+
+    // soft update locally (no full reload)
+    setUsers((prev) =>
+      prev.map((u) => (u.id === user.id ? { ...u, internalNotes: notes } : u))
+    );
   }
 
   async function handleLogout() {
@@ -180,9 +274,27 @@ export default function InternalPanel() {
     router.replace("/internal/login");
   }
 
-  // -----------------------------------
+  // -----------------------------
+  // FILTER / SEARCH (nice QoL)
+  // -----------------------------
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return users;
+
+    return users.filter((u) => {
+      return (
+        u.email.toLowerCase().includes(query) ||
+        (u.name || "").toLowerCase().includes(query) ||
+        (u.orgName || "").toLowerCase().includes(query) ||
+        (u.orgId || "").toLowerCase().includes(query)
+      );
+    });
+  }, [q, users]);
+
+  // -----------------------------
   // LOADING UI
-  // -----------------------------------
+  // -----------------------------
   if (!authReady || loadingData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -191,89 +303,234 @@ export default function InternalPanel() {
     );
   }
 
-  // -----------------------------------
+  // -----------------------------
   // MAIN UI
-  // -----------------------------------
+  // -----------------------------
   return (
     <main className="p-10 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Restok Admin Panel</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Restok Admin Panel</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Internal-only. No payments shown. God-mode controls.
+          </p>
+        </div>
 
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-slate-700 text-white rounded-lg"
-        >
-          Logout
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-4 py-2 bg-sky-600 text-white rounded-lg"
+          >
+            + Create Test Account
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-slate-700 text-white rounded-lg"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={() => setShowCreate(true)}
-        className="mt-4 px-4 py-2 bg-sky-600 text-white rounded-lg"
-      >
-        + Create Test Account
-      </button>
+      {/* Search */}
+      <div className="mt-6">
+        <input
+          className="input w-full"
+          placeholder="Search email, name, org name, org id…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div className="text-xs text-slate-400 mt-2">
+          Showing {filtered.length} owner org(s)
+        </div>
+      </div>
 
-      <div className="mt-8 space-y-4">
-        {users.map((u) => (
-          <div
-            key={u.id}
-            className="p-5 border rounded-xl bg-white shadow-sm"
-          >
-            <div className="flex justify-between">
-              <div>
-                <div className="text-lg font-semibold">{u.name}</div>
-                <div className="text-sm text-slate-500">{u.email}</div>
+      {/* List */}
+      <div className="mt-6 space-y-4">
+        {filtered.map((u) => (
+          <div key={u.id} className="p-5 border rounded-xl bg-white shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="min-w-0">
+                <div className="text-lg font-semibold">
+                  {u.name}{" "}
+                  {u.disabled ? (
+                    <span className="ml-2 text-xs px-2 py-1 rounded bg-red-100 text-red-700">
+                      Disabled
+                    </span>
+                  ) : (
+                    <span className="ml-2 text-xs px-2 py-1 rounded bg-green-100 text-green-700">
+                      Active
+                    </span>
+                  )}
+                </div>
 
-                {u.phone && (
-                  <div className="text-sm text-slate-500">📞 {u.phone}</div>
+                <div className="text-sm text-slate-500 break-all">{u.email}</div>
+
+                {!!u.phone && (
+                  <div className="text-sm text-slate-500 mt-1">📞 {u.phone}</div>
                 )}
 
-                <div className="text-xs mt-2 text-slate-400">UID: {u.id}</div>
-                <div className="text-xs text-slate-400">
-                  Org: {u.orgId || "None"}
+                <div className="text-xs mt-3 text-slate-400 space-y-1">
+                  <div>UID: {u.id}</div>
+                  <div>Org ID: {u.orgId || "None"}</div>
+                  <div>Org Name: {u.orgName || "—"}</div>
+                  <div>Role: {u.role || "owner"}</div>
+                  <div>Status: {u.status || "active"}</div>
+                  <div>
+                    Stripe Customer:{" "}
+                    <span className="font-mono">{u.stripeCustomerId || "—"}</span>
+                  </div>
+                  <div>
+                    Subscription:{" "}
+                    <span className="font-mono">
+                      {u.stripeSubscriptionId || "—"}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-400">Role: {u.role}</div>
               </div>
 
-              <div className="text-sm">
-                Plan: <span className="font-semibold">{u.plan}</span>
+              {/* Controls */}
+              <div className="w-full lg:w-[360px]">
+                {/* Plan controls */}
+                <div className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">Plan</div>
+                    <div className="text-xs text-slate-500">
+                      Override:{" "}
+                      <span
+                        className={
+                          u.manualPlanOverride
+                            ? "text-amber-700 font-semibold"
+                            : "text-slate-500"
+                        }
+                      >
+                        {u.manualPlanOverride ? "ON" : "OFF"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <select
+                      className="border rounded px-2 py-1 w-full"
+                      value={u.plan || "basic"}
+                      onChange={(e) =>
+                        updatePlan(u, e.target.value as Plan)
+                      }
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                      <option value="premium">Premium</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+
+                    <button
+                      className="border rounded px-2 py-1 text-sm"
+                      onClick={() => toggleManualOverride(u, !u.manualPlanOverride)}
+                      title="Toggle manual override (Stripe webhooks won't overwrite when ON)"
+                    >
+                      {u.manualPlanOverride ? "Use Stripe" : "Override"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="text-sm font-semibold">Org status</div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        className="px-3 py-1.5 rounded border text-sm"
+                        onClick={() => updateStatus(u, "active")}
+                      >
+                        Active
+                      </button>
+                      <button
+                        className="px-3 py-1.5 rounded border text-sm"
+                        onClick={() => updateStatus(u, "paused")}
+                      >
+                        Paused
+                      </button>
+                      <button
+                        className="px-3 py-1.5 rounded border text-sm"
+                        onClick={() => updateStatus(u, "canceled")}
+                      >
+                        Canceled
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="border rounded-lg p-3 mt-3">
+                  <div className="text-sm font-semibold">Internal notes</div>
+                  <textarea
+                    className="mt-2 w-full border rounded p-2 text-sm min-h-[90px]"
+                    defaultValue={u.internalNotes || ""}
+                    placeholder="Notes only you/dad can see…"
+                    onBlur={(e) => saveNotes(u, e.target.value)}
+                  />
+                  <div className="text-xs text-slate-400 mt-1">
+                    Saves on blur.
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {u.orgId && (
+                    <button
+                      onClick={() => removeFromOrg(u)}
+                      className="px-4 py-2 bg-amber-500 text-white rounded"
+                    >
+                      Remove From Org
+                    </button>
+                  )}
+
+                  {!u.disabled ? (
+                    <button
+                      onClick={() => toggleDisable(u, true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded"
+                    >
+                      Disable User
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toggleDisable(u, false)}
+                      className="px-4 py-2 bg-green-600 text-white rounded"
+                    >
+                      Enable User
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => deleteUser(u)}
+                    className="px-4 py-2 bg-black text-white rounded"
+                    title="Hard delete user + org (if owner)"
+                  >
+                    Delete User
+                  </button>
+                </div>
+
+                <div className="text-xs text-slate-400 mt-2">
+                  ⚠️ Delete is permanent.
+                </div>
               </div>
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              {u.orgId && (
-                <button
-                  onClick={() => removeFromOrg(u)}
-                  className="px-4 py-2 bg-amber-500 text-white rounded"
-                >
-                  Remove From Org
-                </button>
-              )}
-
-              <button
-                onClick={() => toggleDisable(u, true)}
-                className="px-4 py-2 bg-red-600 text-white rounded"
-              >
-                Disable User
-              </button>
-
-              {u.disabled && (
-                <button
-                  onClick={() => toggleDisable(u, false)}
-                  className="px-4 py-2 bg-green-600 text-white rounded"
-                >
-                  Enable User
-                </button>
-              )}
             </div>
           </div>
         ))}
+
+        {filtered.length === 0 && (
+          <div className="p-10 border rounded-xl text-center text-slate-500">
+            No matching accounts.
+          </div>
+        )}
       </div>
 
+      {/* CREATE USER MODAL */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setShowCreate(false)}
+        >
           <form
+            onClick={(e) => e.stopPropagation()}
             onSubmit={createTester}
             className="bg-white p-6 rounded-xl w-full max-w-md space-y-4"
           >
@@ -293,6 +550,7 @@ export default function InternalPanel() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               required
+              type="email"
             />
 
             <input
@@ -320,6 +578,10 @@ export default function InternalPanel() {
                 Create
               </button>
             </div>
+
+            <p className="text-xs text-slate-500">
+              Creates a Firebase Auth user + org + Firestore user doc.
+            </p>
           </form>
         </div>
       )}
