@@ -3,17 +3,31 @@ import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const host = req.headers.get("host") || "";
-
   const isInternal = host.startsWith("internal.");
 
-  // If someone tries to hit /internal on public domain → block
-  if (!isInternal && req.nextUrl.pathname.startsWith("/internal")) {
-    return NextResponse.redirect(new URL("/", req.url));
+  const { pathname } = req.nextUrl;
+
+  // -------------------------
+  // INTERNAL DOMAIN RULES
+  // -------------------------
+  if (isInternal) {
+    // Allow internal login + internal root
+    if (pathname === "/login" || pathname === "/") {
+      return NextResponse.next();
+    }
+
+    // Block everything else
+    return NextResponse.redirect(
+      new URL("/login", req.url)
+    );
   }
 
-  // If internal subdomain → allow ONLY /internal routes
-  if (isInternal && !req.nextUrl.pathname.startsWith("/internal")) {
-    return NextResponse.redirect(new URL("/internal", req.url));
+  // -------------------------
+  // PUBLIC DOMAIN RULES
+  // -------------------------
+  // Block internal login on public site
+  if (pathname === "/login" && host.startsWith("internal.")) {
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return NextResponse.next();
