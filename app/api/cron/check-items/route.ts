@@ -68,7 +68,7 @@ export async function GET() {
             <tr><td>
 
               <div style="text-align:center; margin-bottom:20px;">
-                <img src="https://getrestok.com/logo.svg"
+                <img src="https://getrestok.com/logo.png"
                   alt="Restok" width="120"
                   style="display:block; margin:0 auto;" />
               </div>
