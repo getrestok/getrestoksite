@@ -17,6 +17,10 @@ export const metadata: Metadata = {
     default: "Restok",
     template: "%s - Restok",
   },
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
 };
 
 export default function RootLayout({
@@ -26,10 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        {/* Neutral theme color for browsers */}
-        <meta name="theme-color" content="#ffffff" />
-      </head>
+      <head />
 
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white`}
