@@ -1,74 +1,78 @@
 import { NextResponse } from "next/server";
-import * as admin from "firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
-
-const db = admin.firestore();
-
+/**
+ * INTERNAL: Create test user
+ * Requires Firebase custom claim: internalAdmin === true
+ */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { token, email, password, name } = body;
+    const { token, email, password, name } = await req.json();
 
-    if (!token) {
-      return NextResponse.json({ error: "Missing token" }, { status: 400 });
+    if (!token || !email || !password) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    // Verify requester
-    const decoded = await admin.auth().verifyIdToken(token);
-    const adminUid = decoded.uid;
+    // --------------------------------------------------
+    // VERIFY INTERNAL ADMIN (CUSTOM CLAIM)
+    // --------------------------------------------------
+    const decoded = await adminAuth.verifyIdToken(token);
 
-    const adminDoc = await db.collection("users").doc(adminUid).get();
-
-    if (!adminDoc.exists || adminDoc.data()?.internalAdmin !== true) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!decoded.internalAdmin) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 403 }
+      );
     }
 
-    // Create Firebase Auth user
-    const user = await admin.auth().createUser({
+    // --------------------------------------------------
+    // CREATE AUTH USER
+    // --------------------------------------------------
+    const userRecord = await adminAuth.createUser({
       email,
       password,
-      displayName: name,
+      displayName: name || "Tester",
     });
 
-    // Create org
-    const orgRef = db.collection("organizations").doc();
+    const uid = userRecord.uid;
+
+    // --------------------------------------------------
+    // CREATE ORGANIZATION (TEST / BETA)
+    // --------------------------------------------------
+    const orgRef = adminDb.collection("organizations").doc(uid);
+
     await orgRef.set({
-      id: orgRef.id,
-      ownerId: user.uid,
-      name: `${name}'s Organization`,
-      plan: "basic",
+      name: `${name || "Tester"}'s Organization`,
+      ownerId: uid,
+      plan: "basic",            // ⚠️ paid plan, not free
       beta: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: new Date(),
     });
 
-    // Create user firestore doc
-    await db.collection("users").doc(user.uid).set({
+    // --------------------------------------------------
+    // CREATE USER PROFILE
+    // --------------------------------------------------
+    await adminDb.collection("users").doc(uid).set({
       email,
-      name,
-      orgId: orgRef.id,
+      name: name || "",
+      orgId: uid,
       role: "owner",
-      internalAdmin: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: new Date(),
     });
 
     return NextResponse.json({
       success: true,
-      uid: user.uid,
-      orgId: orgRef.id,
+      uid,
+      orgId: uid,
     });
   } catch (err: any) {
-    console.error(err);
+    console.error("❌ Internal create-user error:", err);
+
     return NextResponse.json(
-      { error: err.message || "Failed" },
+      { error: err.message || "Failed to create user" },
       { status: 500 }
     );
   }

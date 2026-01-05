@@ -1,52 +1,69 @@
 import { NextResponse } from "next/server";
-import admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
-}
-
-const db = getFirestore();
-
+/**
+ * INTERNAL: Delete user (and org if owner)
+ * Requires Firebase custom claim: internalAdmin === true
+ */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { token, uid } = body;
+    const { token, uid } = await req.json();
 
-    // Verify caller
-    const authUser = await admin.auth().verifyIdToken(token);
-    const callerDoc = await db.collection("users").doc(authUser.uid).get();
-
-    if (!callerDoc.exists || callerDoc.data()?.internalAdmin !== true) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!token || !uid) {
+      return NextResponse.json(
+        { error: "Missing token or uid" },
+        { status: 400 }
+      );
     }
 
-    // Get user to see if org cleanup is needed
-    const userDoc = await db.collection("users").doc(uid).get();
-    const orgId = userDoc.data()?.orgId;
+    // --------------------------------------------------
+    // VERIFY INTERNAL ADMIN (CUSTOM CLAIM)
+    // --------------------------------------------------
+    const decoded = await adminAuth.verifyIdToken(token);
 
-    // Delete user doc
-    await db.collection("users").doc(uid).delete();
+    if (!decoded.internalAdmin) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 403 }
+      );
+    }
 
-    // Optionally delete org if they are owner
+    // --------------------------------------------------
+    // LOAD USER DOC (FOR ORG CLEANUP)
+    // --------------------------------------------------
+    const userRef = adminDb.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+
+    const orgId = userSnap.exists ? userSnap.data()?.orgId : null;
+
+    // --------------------------------------------------
+    // DELETE USER FIRESTORE DOC
+    // --------------------------------------------------
+    await userRef.delete().catch(() => null);
+
+    // --------------------------------------------------
+    // DELETE ORG IF USER IS OWNER
+    // --------------------------------------------------
     if (orgId) {
-      const org = await db.collection("organizations").doc(orgId).get();
-      if (org.exists && org.data()?.ownerId === uid) {
-        await db.collection("organizations").doc(orgId).delete();
+      const orgRef = adminDb.collection("organizations").doc(orgId);
+      const orgSnap = await orgRef.get();
+
+      if (orgSnap.exists && orgSnap.data()?.ownerId === uid) {
+        await orgRef.delete();
       }
     }
 
-    // Delete Firebase Auth user
-    await admin.auth().deleteUser(uid);
+    // --------------------------------------------------
+    // DELETE FIREBASE AUTH USER
+    // --------------------------------------------------
+    await adminAuth.deleteUser(uid);
 
     return NextResponse.json({ success: true });
-
   } catch (err: any) {
-    console.log(err);
+    console.error("❌ Internal delete-user error:", err);
+
     return NextResponse.json(
-      { error: err.message || "Failed" },
+      { error: err.message || "Failed to delete user" },
       { status: 500 }
     );
   }

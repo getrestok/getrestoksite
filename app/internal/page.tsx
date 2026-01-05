@@ -40,13 +40,25 @@ export default function InternalPanel() {
         return;
       }
 
-      const snap = await getDoc(doc(db, "users", user.uid));
-      const data: any = snap.data();
+      useEffect(() => {
+  const unsub = onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      router.replace("/internal/login");
+      return;
+    }
 
-      if (!data?.internalAdmin) {
-        router.replace("/dashboard");
-        return;
-      }
+    const token = await user.getIdTokenResult(true);
+
+    if (!token.claims.internalAdmin) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    setAuthReady(true);
+  });
+
+  return () => unsub();
+}, [router]);
 
       setAuthReady(true);
     });
