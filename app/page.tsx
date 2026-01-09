@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Simple scroll reveal wrapper
 const Reveal = ({ children, delay = 0 }: any) => (
@@ -18,6 +19,22 @@ const Reveal = ({ children, delay = 0 }: any) => (
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const isStandalone =
+    window.matchMedia("display-mode: standalone").matches ||
+    (window.navigator as any).standalone === true;
+
+    const ua = navigator.userAgent.toLowerCase();
+    const  isAppilix = ua.includes("app{") || ua.includes("wv") || ua.includes("webview");
+
+    if (isStandalone || isAppilix) {
+      router.replace("/login")
+  }
+}, [router]);
+
+
 
   return (
     <main className="antialiased text-slate-800 bg-white">
