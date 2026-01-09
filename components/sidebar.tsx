@@ -92,7 +92,7 @@ export default function Sidebar() {
       {/* ---------- SIDEBAR ---------- */}
       <aside
   className="
-    hidden md:flex fixed left-0 top-0 h-screen w-64
+    flex w-64 shrink-0
     bg-white dark:bg-slate-900
     border-r border-slate-200 dark:border-slate-700
     p-6 flex-col
