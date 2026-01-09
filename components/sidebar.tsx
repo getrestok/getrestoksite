@@ -8,7 +8,10 @@ import { doc, onSnapshot } from "firebase/firestore";
 
 type Plan = "basic" | "pro" | "premium" | "enterprise";
 
-export default function Sidebar() {
+type SidebarProps = {
+  onNavigate?: () => void;
+};
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const [plan, setPlan] = useState<Plan>("basic");
   const [role, setRole] =
     useState<"owner" | "admin" | "member">("member");
