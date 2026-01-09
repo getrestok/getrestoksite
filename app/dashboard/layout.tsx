@@ -141,14 +141,10 @@ export default function DashboardLayout({
           <div className="fixed inset-0 z-[9999] bg-white/95 dark:bg-slate-900/95 flex items-center justify-center p-6">
             <div className="max-w-xl text-center">
               <h2 className="text-2xl font-semibold mb-4">Add Restok to your Home Screen</h2>
-              <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">To continue using Restok on iPhone, open Safari's Share menu and choose "Add to Home Screen". After installing, return here and tap the button below.</p>
+              <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">To continue using Restok on iPhone, open Safari's Share menu and choose "Add to Home Screen". You will need to use the home screen app to use Restok on IOS.</p>
               <div className="flex items-center justify-center gap-3 mt-4">
-                <button
-                  onClick={checkInstall}
-                  className="px-4 py-2 bg-sky-600 text-white rounded-md"
-                >
-                  {checkingInstall ? "Checking…" : "I installed — check"}
-                </button>
+                
+                 
               </div>
             </div>
           </div>
