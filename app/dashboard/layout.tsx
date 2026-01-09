@@ -15,6 +15,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [requireInstall, setRequireInstall] = useState(false);
+  const [checkingInstall, setCheckingInstall] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -25,6 +27,50 @@ export default function DashboardLayout({
 
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    try {
+      const ua = window.navigator.userAgent || "";
+      const isiOS = /iPhone|iPad|iPod/i.test(ua);
+      const isStandalone = Boolean((window as any).navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+      const already = localStorage.getItem("restok_add_to_home_done");
+
+      if (isiOS && !isStandalone && !already) {
+        setRequireInstall(true);
+
+        const id = setInterval(() => {
+          const nowStandalone = Boolean((window as any).navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+          if (nowStandalone) {
+            localStorage.setItem("restok_add_to_home_done", "1");
+            setRequireInstall(false);
+            clearInterval(id);
+          }
+        }, 1000);
+
+        return () => clearInterval(id);
+      }
+    } catch (e) {
+      // noop
+    }
+  }, [mounted]);
+
+  const checkInstall = () => {
+    try {
+      setCheckingInstall(true);
+      const nowStandalone = Boolean((window as any).navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+      if (nowStandalone) {
+        localStorage.setItem("restok_add_to_home_done", "1");
+        setRequireInstall(false);
+      } else {
+        // keep blocking; user must follow instructions
+        // small visual feedback only
+      }
+    } finally {
+      setCheckingInstall(false);
+    }
+  };
 
   useEffect(() => {
     const titles: Record<string, string> = {
@@ -84,8 +130,29 @@ export default function DashboardLayout({
           </div>
 
           <BetaNotice />
-          <main className="flex-1 p-6">{children}</main>
+          {requireInstall ? (
+            <main className="flex-1 p-6" aria-hidden="true">{children}</main>
+          ) : (
+            <main className="flex-1 p-6">{children}</main>
+          )}
         </div>
+
+        {requireInstall && (
+          <div className="fixed inset-0 z-[9999] bg-white/95 dark:bg-slate-900/95 flex items-center justify-center p-6">
+            <div className="max-w-xl text-center">
+              <h2 className="text-2xl font-semibold mb-4">Add Restok to your Home Screen</h2>
+              <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">To continue using Restok on iPhone, open Safari's Share menu and choose "Add to Home Screen". After installing, return here and tap the button below.</p>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <button
+                  onClick={checkInstall}
+                  className="px-4 py-2 bg-sky-600 text-white rounded-md"
+                >
+                  {checkingInstall ? "Checking…" : "I installed — check"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </OrgLoader>
   );

@@ -43,7 +43,7 @@ export default function LoginClient() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 md:p-8">
         <h1 className="text-2xl font-bold text-center">Log in</h1>
         <p className="text-slate-500 text-center mt-2">
-          Access your StockPilot account
+          Access your Restok account
         </p>
 
         {showSetupMessage && (

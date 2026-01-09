@@ -24,6 +24,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const [appRedirecting, setAppRedirecting] = useState(false);
+  const [showAddToHome, setShowAddToHome] = useState(false);
 
   useEffect(() => {
     // Detect Appilix wrapper by user agent and redirect into the app flow
@@ -42,6 +43,25 @@ export default function Home() {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // Prompt iPhone users (Safari) to add the site to their Home Screen
+    if (typeof navigator === "undefined") return;
+
+    try {
+      const ua = navigator.userAgent || "";
+      const isiOS = /\b(iPhone|iPad|iPod)\b/i.test(ua);
+
+      const inStandalone = (window.navigator as any)?.standalone || window.matchMedia('(display-mode: standalone)').matches;
+      const dismissed = localStorage.getItem("restok_add_to_home_dismissed");
+
+      if (isiOS && !inStandalone && !dismissed) {
+        setShowAddToHome(true);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   
 
 
@@ -53,6 +73,38 @@ export default function Home() {
           <div className="flex flex-col items-center gap-3">
             <div className="h-10 w-10 rounded-full border-4 border-sky-600 border-t-transparent animate-spin" />
             <div className="text-sm text-slate-700 dark:text-slate-200">Opening app…</div>
+          </div>
+        </div>
+      )}
+
+      {showAddToHome && (
+        <div className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 z-50">
+          <div className="bg-white dark:bg-slate-900 border rounded-lg p-3 flex items-center gap-3 shadow">
+            <div className="flex-1 text-sm text-slate-800 dark:text-slate-100">
+              Add Restok to your Home Screen: tap the Share button (ᐱ) and choose "Add to Home Screen".
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  localStorage.setItem("restok_add_to_home_dismissed", "1");
+                  setShowAddToHome(false);
+                }}
+                className="text-sm text-slate-600 dark:text-slate-300"
+              >
+                Got it
+              </button>
+
+              <button
+                onClick={() => {
+                  localStorage.setItem("restok_add_to_home_dismissed", "1");
+                  setShowAddToHome(false);
+                }}
+                className="bg-sky-600 text-white px-3 py-1.5 rounded"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
