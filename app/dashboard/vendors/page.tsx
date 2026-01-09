@@ -135,11 +135,11 @@ export default function VendorsPage() {
   // -------------------------
   return (
     <motion.main
-      className="p-10 flex-1 max-w-5xl mx-auto"
+      className="p-4 md:p-10 flex-1 max-w-full md:max-w-5xl mx-auto"
       initial={{ opacity: 0.4 }}
       animate={{ opacity: 1 }}
     >
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
           Vendors
         </h1>
@@ -170,7 +170,7 @@ export default function VendorsPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.25 }}
-            className="p-4 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 flex justify-between items-center"
+            className="p-4 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center"
           >
             <div>
               <h3 className="font-semibold text-slate-900 dark:text-slate-100">
@@ -196,7 +196,7 @@ export default function VendorsPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-3 md:mt-0">
               <button
                 onClick={() => {
                   setEditingVendor(v);

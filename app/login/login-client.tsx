@@ -32,15 +32,15 @@ export default function LoginClient() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 relative">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 md:p-6 relative">
       <a
         href="/"
-        className="absolute top-6 left-6 text-sky-600 font-medium hover:underline"
+        className="absolute top-4 left-4 md:top-6 md:left-6 text-sky-600 font-medium hover:underline"
       >
         ← Back to Home
       </a>
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-8">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 md:p-8">
         <h1 className="text-2xl font-bold text-center">Log in</h1>
         <p className="text-slate-500 text-center mt-2">
           Access your StockPilot account
@@ -68,7 +68,7 @@ export default function LoginClient() {
             <label className="text-sm text-slate-600">Email</label>
             <input
               type="email"
-              className="mt-1 w-full rounded-lg border p-3"
+              className="input"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -79,7 +79,7 @@ export default function LoginClient() {
             <label className="text-sm text-slate-600">Password</label>
             <input
               type="password"
-              className="mt-1 w-full rounded-lg border p-3"
+              className="input"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

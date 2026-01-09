@@ -237,7 +237,7 @@ ${user?.displayName || user?.email || "—"}`;
   if (loadingPage) {
     return (
       <motion.main
-        className="p-10 flex-1 flex items-center justify-center min-h-screen"
+        className="p-4 md:p-10 flex-1 flex items-center justify-center min-h-screen"
         initial={{ opacity: 0.4 }}
         animate={{ opacity: 1 }}
       >
@@ -256,7 +256,7 @@ ${user?.displayName || user?.email || "—"}`;
   // ---------------------------------
   return (
     <motion.main
-      className="p-10 flex-1 max-w-5xl mx-auto"
+      className="p-4 md:p-10 flex-1 max-w-full md:max-w-5xl mx-auto"
       initial={{ opacity: 0.5 }}
       animate={{ opacity: 1 }}
     >
@@ -300,14 +300,14 @@ ${user?.displayName || user?.email || "—"}`;
           return (
             <div
               key={item.id}
-              className={`p-4 rounded-xl border flex justify-between items-center transition
+              className={`p-4 rounded-xl border transition
                 ${
                   reviewIds.includes(item.id)
                     ? "bg-amber-50 dark:bg-amber-900/30 border-amber-400"
                     : "bg-white dark:bg-slate-800"
                 }`}
             >
-              <div>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
                 <h3 className="font-semibold">{item.name}</h3>
 
                 {reviewIds.includes(item.id) && (
@@ -333,7 +333,7 @@ ${user?.displayName || user?.email || "—"}`;
                //   Email Inner Space
                // </a>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mt-3 md:mt-0">
                   {/* EMAIL vs WEBSITE toggle */}
                   {vendor.email && vendor.website && orgId && (
                     <div className="flex rounded-md overflow-hidden border">
@@ -368,7 +368,7 @@ ${user?.displayName || user?.email || "—"}`;
                         setRestockingItem(item);
                         setShowRestockConfirm(true);
                       }}
-                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                      className="w-full md:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
                     >
                       Email Vendor
                     </button>
@@ -382,7 +382,7 @@ ${user?.displayName || user?.email || "—"}`;
                         setRestockingItem(item);
                         setShowRestockConfirm(true);
                       }}
-                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
+                      className="w-full md:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm"
                     >
                       Search Site
                     </button>

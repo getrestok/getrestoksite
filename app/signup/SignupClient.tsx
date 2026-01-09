@@ -76,7 +76,7 @@ const [selectedPlan, setSelectedPlan] =
   // UI
   // -----------------------------
   return (
-  <div className="min-h-screen bg-zinc-50 px-6 relative">
+  <div className="min-h-screen bg-zinc-50 px-4 md:px-6 relative">
 
     {/* BACK TO HOME — PAGE LEVEL */}
     <a
@@ -88,7 +88,7 @@ const [selectedPlan, setSelectedPlan] =
 
     {/* CENTERED SIGNUP CARD */}
     <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow">
+    <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-xl shadow">
 
         <h1 className="text-3xl font-bold text-center">
           Create your account
@@ -119,7 +119,7 @@ const [selectedPlan, setSelectedPlan] =
               onChange={(e) =>
                 setSelectedPlan(e.target.value as keyof typeof PLANS)
               }
-              className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+              className="input"
             >
               <option value="basic">Basic — 5 items</option>
               <option value="pro">Pro — 10 items/2 users</option>
@@ -139,7 +139,7 @@ const [selectedPlan, setSelectedPlan] =
     onChange={(e) =>
       setInterval(e.target.value as "monthly" | "yearly")
     }
-    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+    className="input"
   >
     <option value="monthly">Monthly — billed every month</option>
     <option value="yearly">Yearly — billed annually</option>
@@ -156,7 +156,7 @@ const [selectedPlan, setSelectedPlan] =
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+              className="input"
             />
           </div>
 
@@ -170,7 +170,7 @@ const [selectedPlan, setSelectedPlan] =
               required
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
-              className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+              className="input"
             />
           </div>
 
@@ -185,7 +185,7 @@ const [selectedPlan, setSelectedPlan] =
     placeholder="(555) 123-4567"
     value={phone}
     onChange={(e) => setPhone(e.target.value)}
-    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+    className="input"
   />
 </div>
 
@@ -199,7 +199,7 @@ const [selectedPlan, setSelectedPlan] =
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500"
+              className="input"
             />
           </div>
 

@@ -139,7 +139,7 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <motion.main
-        className="p-10 flex-1 flex items-center justify-center"
+        className="p-4 md:p-10 flex-1 flex items-center justify-center"
         initial={{ opacity: 0.4 }}
         animate={{ opacity: 1 }}
       >
@@ -158,7 +158,7 @@ export default function ReportsPage() {
   // -------------------------
   return (
     <motion.main
-      className="flex-1 p-10"
+      className="flex-1 p-4 md:p-10"
       initial={{ opacity: 0.4 }}
       animate={{ opacity: 1 }}
     >
@@ -168,9 +168,9 @@ export default function ReportsPage() {
       </p>
 
       {/* BASIC PICKUP REPORT */}
-      <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl pickup-report">
+      <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-full md:max-w-4xl pickup-report">
         <div className="no-print">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold">🛒 Store Pickup List</h2>
               <p className="text-sm text-slate-500 mt-1">
@@ -178,7 +178,7 @@ export default function ReportsPage() {
               </p>
             </div>
 
-            <div className="text-right text-xs text-slate-500">
+            <div className="text-right text-xs text-slate-500 w-full sm:w-auto">
               <div>
                 Selected:{" "}
                 <span className="font-semibold">
@@ -200,7 +200,7 @@ export default function ReportsPage() {
           </div>
 
           {/* FILTERS */}
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="flex flex-wrap gap-3 mt-4 items-center">
             <button
               onClick={() => setFilter("low")}
               className={`px-3 py-1.5 rounded ${
@@ -236,7 +236,7 @@ export default function ReportsPage() {
 
             <button
               onClick={() => window.print()}
-              className="ml-auto bg-slate-900 text-white px-4 py-2 rounded hover:opacity-90"
+              className="sm:ml-auto w-full sm:w-auto bg-slate-900 text-white px-4 py-2 rounded hover:opacity-90"
             >
               🖨️ Print List
             </button>
@@ -364,15 +364,15 @@ export default function ReportsPage() {
         📈 Advanced Analytics
       </h2>
 
-      {plan === "basic" ? (
+        {plan === "basic" ? (
         <LockedBlur onClick={() => setShowUpsell(true)}>
-          <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl">
+          <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-full md:max-w-4xl">
             <div className="h-40 rounded-lg border animate-pulse mb-4" />
             <div className="h-24 rounded-lg border animate-pulse" />
           </div>
         </LockedBlur>
       ) : (
-        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-4xl no-print">
+        <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-xl border max-w-full md:max-w-4xl no-print">
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Detailed analytics will appear here.
           </p>
@@ -423,10 +423,10 @@ export default function ReportsPage() {
               <li>✔️ Export reports</li>
             </ul>
 
-            <div className="flex gap-2 mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
                 onClick={() => setShowUpsell(false)}
-                className="w-1/2 border rounded-lg py-2"
+                className="w-full sm:w-1/2 border rounded-lg py-2"
               >
                 Maybe later
               </button>
@@ -437,7 +437,7 @@ export default function ReportsPage() {
                   window.location.href =
                     "/dashboard/settings#billing";
                 }}
-                className="w-1/2 bg-amber-500 text-white rounded-lg py-2"
+                className="w-full sm:w-1/2 bg-amber-500 text-white rounded-lg py-2"
               >
                 Upgrade Now
               </button>

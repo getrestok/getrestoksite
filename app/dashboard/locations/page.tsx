@@ -123,12 +123,12 @@ export default function LocationsPage() {
 
   return (
     <motion.main
-      className="p-10 flex-1 max-w-5xl mx-auto"
+      className="p-4 md:p-10 flex-1 max-w-full md:max-w-5xl mx-auto"
       initial={{ opacity: 0.4 }}
       animate={{ opacity: 1 }}
     >
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Locations</h1>
 
@@ -189,13 +189,13 @@ export default function LocationsPage() {
 
         {locations.map((l: any, i: any) => (
           <motion.div
-            key={l.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
-            className="p-4 rounded-xl border bg-white dark:bg-slate-800 flex justify-between items-center"
-          >
-            <div>
+              key={l.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className="p-4 rounded-xl border bg-white dark:bg-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center"
+            >
+              <div>
               <h3 className="font-semibold">{l.name}</h3>
 
               <div className="text-sm text-slate-500 dark:text-slate-400">

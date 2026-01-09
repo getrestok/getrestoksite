@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Simple scroll reveal wrapper
 const Reveal = ({ children, delay = 0 }: any) => (
@@ -17,6 +17,8 @@ const Reveal = ({ children, delay = 0 }: any) => (
 );
 
 export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <main className="antialiased text-slate-800 bg-white">
 
@@ -30,7 +32,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-between">
           
 
-<a href="/" className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3">
   <Image
     src="/logo.svg"
     alt="Restok logo"
@@ -44,13 +46,21 @@ export default function Home() {
     <div className="font-semibold text-slate-900 dark:text-white">
       Restok
     </div>
-    <div className="text-xs text-slate-500 dark:text-slate-400 -mt-1">
-      Your office, always stocked.
-    </div>
+            <div className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 -mt-1">
+              Your office, always stocked.
+            </div>
   </div>
 </a>
 
-          <nav className="flex items-center gap-3 text-sm">
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="md:hidden text-2xl"
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+
+          <nav className="hidden md:flex items-center gap-3 text-sm">
             <a href="#features" className="hover:text-slate-900">Features</a>
             <a href="#how" className="hover:text-slate-900">How it works</a>
             <a href="#pricing" className="hover:text-slate-900">Pricing</a>
@@ -65,6 +75,48 @@ export default function Home() {
           </nav>
         </div>
       </motion.header>
+
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-50 md:hidden"
+          onClick={() => setMenuOpen(false)}
+        >
+          <motion.div
+            initial={{ y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -8, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="absolute top-0 left-0 right-0 bg-white dark:bg-slate-900 p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <a href="/" className="flex items-center gap-3">
+                <Image src="/logo.svg" alt="Restok logo" width={36} height={36} className="shrink-0" />
+                <div>
+                  <div className="font-semibold text-slate-900 dark:text-white">Restok</div>
+                </div>
+              </a>
+
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className="text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <nav className="mt-6 flex flex-col gap-3 text-lg">
+              <a href="#features" className="block py-2">Features</a>
+              <a href="#how" className="block py-2">How it works</a>
+              <a href="#pricing" className="block py-2">Pricing</a>
+              <a href="/terms" className="block py-2">Terms</a>
+              <a href="/login" className="block py-2 text-sky-600">Log in</a>
+              <a href="/signup" className="block py-3 bg-sky-600 text-white text-center rounded-lg">Get Started</a>
+            </nav>
+          </motion.div>
+        </div>
+      )}
 
       {/* HERO */}
       <section className="mx-auto max-w-7xl px-6 py-12">

@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     default: "Restok",
     template: "%s - Restok",
   },
+  viewport: "width=device-width, initial-scale=1",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
@@ -30,10 +31,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head />
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
 
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 min-h-screen`}
       >
         {children}
       </body>

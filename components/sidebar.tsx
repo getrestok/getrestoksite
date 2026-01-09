@@ -95,19 +95,19 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       {/* ---------- SIDEBAR ---------- */}
       <aside
   className="
-    flex w-64 shrink-0
+    flex w-64 shrink-0 h-full
     bg-white dark:bg-slate-900
     border-r border-slate-200 dark:border-slate-700
-    p-6 flex-col
+    p-4 md:p-6 flex-col
   "
 >
   {/* Top scrollable area */}
   <div className="flex-1 overflow-y-auto">
     {/* Logo */}
-    <img src="/logo.svg" alt="Restok Logo" className="w-12 h-12 mb-4" />
+    <img src="/logo.svg" alt="Restok Logo" className="w-10 h-10 md:w-12 md:h-12 mb-4" />
 
     <motion.h1
-      className="text-2xl font-bold mb-8 text-slate-800 dark:text-slate-100"
+      className="hidden sm:block text-2xl font-bold mb-8 text-slate-800 dark:text-slate-100"
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
     >

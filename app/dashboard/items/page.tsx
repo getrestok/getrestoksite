@@ -281,7 +281,7 @@ const [vendorSaving, setVendorSaving] = useState(false);
   if (loadingPage) {
     return (
       <motion.main
-        className="p-10 flex-1 flex items-center justify-center"
+        className="p-4 md:p-10 flex-1 flex items-center justify-center"
         initial={{ opacity: 0.4 }}
         animate={{ opacity: 1 }}
       >
@@ -299,10 +299,10 @@ const [vendorSaving, setVendorSaving] = useState(false);
   // UI
   // =========================================
   return (
-    <motion.main className="p-10 flex-1">
+    <motion.main className="p-4 md:p-10 flex-1">
       <h1 className="text-3xl font-bold">Items</h1>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <p className="text-sm text-slate-600 dark:text-slate-400">
           <strong>{items.length}</strong> /{" "}
           {itemLimit === Infinity ? "∞" : itemLimit} items used
@@ -344,10 +344,10 @@ const [vendorSaving, setVendorSaving] = useState(false);
           const status = getStatus(item);
           return (
             <div
-              key={item.id}
-              className="p-4 border rounded-xl flex justify-between items-center bg-white dark:bg-slate-800"
-            >
-              <div className="flex-1 pr-4">
+                key={item.id}
+                className="p-4 border rounded-xl bg-white dark:bg-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center"
+              >
+                <div className="flex-1 pr-0 md:pr-4">
                 <h3 className="font-semibold">{item.name}</h3>
 
                 {status && (
@@ -380,10 +380,10 @@ const [vendorSaving, setVendorSaving] = useState(false);
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-3 md:mt-0 flex-shrink-0">
                 <button
                   onClick={() => handleRefill(item.id)}
-                  className="px-3 py-1.5 bg-green-500 text-white rounded"
+                  className="w-full md:w-auto px-3 py-1.5 bg-green-500 text-white rounded"
                 >
                   Refill
                 </button>
@@ -393,7 +393,7 @@ const [vendorSaving, setVendorSaving] = useState(false);
                     setEditItem(item);
                     setShowEdit(true);
                   }}
-                  className="px-3 py-1.5 bg-blue-500 text-white rounded"
+                  className="w-full md:w-auto px-3 py-1.5 bg-blue-500 text-white rounded"
                 >
                   Edit
                 </button>
@@ -403,7 +403,7 @@ const [vendorSaving, setVendorSaving] = useState(false);
                     setDeleteItem(item);
                     setShowDelete(true);
                   }}
-                  className="px-3 py-1.5 bg-red-500 text-white rounded"
+                  className="w-full md:w-auto px-3 py-1.5 bg-red-500 text-white rounded"
                 >
                   Delete
                 </button>

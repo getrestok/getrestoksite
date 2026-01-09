@@ -118,7 +118,7 @@ export default function SetPasswordForm() {
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-xl shadow max-w-md w-full"
+        className="bg-white p-6 md:p-8 rounded-xl shadow max-w-md w-full"
       >
         <h1 className="text-2xl font-bold text-center">
           Set your password
@@ -147,7 +147,7 @@ export default function SetPasswordForm() {
           placeholder="New password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-6 w-full border rounded-lg px-3 py-2"
+          className="input mt-6"
         />
 
         <input
@@ -156,7 +156,7 @@ export default function SetPasswordForm() {
           placeholder="Confirm password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="mt-3 w-full border rounded-lg px-3 py-2"
+          className="input mt-3"
         />
 
         <p className="text-xs text-slate-500 mt-2">

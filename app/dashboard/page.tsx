@@ -153,7 +153,7 @@ const displayName =
   // ------------------------------
   return (
     <motion.main
-      className="flex-1 p-10"
+      className="flex-1 p-4 md:p-10"
       initial={{ opacity: 0.4 }}
       animate={{ opacity: 1 }}
     >
