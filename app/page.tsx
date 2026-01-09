@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+
 
 // Simple scroll reveal wrapper
 const Reveal = ({ children, delay = 0 }: any) => (
@@ -20,24 +23,39 @@ const Reveal = ({ children, delay = 0 }: any) => (
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const [appRedirecting, setAppRedirecting] = useState(false);
 
   useEffect(() => {
-    const isStandalone =
-    window.matchMedia("display-mode: standalone").matches ||
-    (window.navigator as any).standalone === true;
+    // Detect Appilix wrapper by user agent and redirect into the app flow
+    if (typeof navigator === "undefined") return;
 
-    const ua = navigator.userAgent.toLowerCase();
-    const  isAppilix = ua.includes("app{") || ua.includes("wv") || ua.includes("webview");
+    const ua = navigator.userAgent || "";
+    const isAppilix = /\bappilix\b/i.test(ua) || /App\{.*?\}/.test(ua);
+    if (!isAppilix) return;
 
-    if (isStandalone || isAppilix) {
-      router.replace("/login")
-  }
-}, [router]);
+    setAppRedirecting(true);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) router.replace("/dashboard");
+      else router.replace("/login");
+    });
 
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
 
 
   return (
     <main className="antialiased text-slate-800 bg-white">
+
+      {appRedirecting && (
+        <div className="fixed inset-0 z-50 bg-white/95 dark:bg-black/90 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-10 w-10 rounded-full border-4 border-sky-600 border-t-transparent animate-spin" />
+            <div className="text-sm text-slate-700 dark:text-slate-200">Opening app…</div>
+          </div>
+        </div>
+      )}
 
       {/* NAV */}
       <motion.header
