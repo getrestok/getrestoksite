@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 type SendEmailOptions = {
@@ -9,6 +10,13 @@ type SendEmailOptions = {
   text?: string;
   from?: string;
 };
+
+export function resolveNotificationEmail(user: {
+  email?: string;
+  notificationEmail?: string;
+}): string | null {
+  return user.notificationEmail || user.email || null;
+}
 
 export async function sendEmail({
   to,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { Resend } from "resend";
 import { Timestamp } from "firebase-admin/firestore";
+import { resolveNotificationEmail } from "@/lib/email";
 
 if (!process.env.RESEND_API_KEY) {
   throw new Error("Missing RESEND_API_KEY");
@@ -9,7 +10,9 @@ if (!process.env.RESEND_API_KEY) {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const test = url.searchParams.get("test") === "1";
   const now = new Date();
   let emailsSent = 0;
 
@@ -131,9 +134,18 @@ export async function GET() {
 </html>
         `;
 
+        const to = test
+         ? "cory@issioffice.com"
+         :  resolveNotificationEmail(user);
+
+if (!to) {
+  console.warn("Skipping user with no notification email", userDoc.id);
+  continue;
+}
+
         await resend.emails.send({
           from: "Restok <alerts@getrestok.com>",
-          to: user.email,
+          to,
           subject,
           html,
         });
