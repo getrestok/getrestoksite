@@ -10,9 +10,7 @@ if (!process.env.RESEND_API_KEY) {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const test = url.searchParams.get("test") === "1";
+export async function GET() {
   const now = new Date();
   let emailsSent = 0;
 
@@ -134,9 +132,7 @@ export async function GET(req: Request) {
 </html>
         `;
 
-        const to = test
-         ? "cory@issioffice.com"
-         :  resolveNotificationEmail(user);
+        const to = resolveNotificationEmail(user);
 
 if (!to) {
   console.warn("Skipping user with no notification email", userDoc.id);
